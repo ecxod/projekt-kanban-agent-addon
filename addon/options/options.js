@@ -5,8 +5,10 @@
   const template = document.getElementById("agentTemplate");
   const bridgeStatus = document.getElementById("bridgeStatus");
   const saveStatus = document.getElementById("saveStatus");
+  const reloadButton = document.getElementById("reload");
   const expectedHostVersion = browser.runtime.getManifest().version;
   let hostCompatible = false;
+  let loadInProgress = false;
 
   function setStatus(element, message, type = "") {
     element.textContent = message;
@@ -160,22 +162,27 @@
   }
 
   async function load() {
+    if (loadInProgress) {
+      return;
+    }
+    loadInProgress = true;
     hostCompatible = false;
     document.getElementById("save").disabled = true;
     document.getElementById("addAgent").disabled = true;
+    reloadButton.disabled = true;
     setStatus(bridgeStatus, "Verbindung wird geprüft …");
     setStatus(saveStatus, "");
-    agentsContainer.replaceChildren();
     try {
       const hello = await nativeRequest("hello");
       if (hello.version !== expectedHostVersion) {
         throw new Error(`Native Host ${hello.version || "unbekannt"} ist nicht kompatibel. Benötigt wird Version ${expectedHostVersion}. Bitte die Bridge aus dem aktuellen Release installieren.`);
       }
+      const config = await nativeRequest("config.get");
       hostCompatible = true;
       document.getElementById("save").disabled = false;
       document.getElementById("addAgent").disabled = false;
       setStatus(bridgeStatus, `Verbunden mit Native Host ${hello.version}.`, "success");
-      const config = await nativeRequest("config.get");
+      agentsContainer.replaceChildren();
       for (const agent of config.agents || []) {
         addAgent(agent);
       }
@@ -184,7 +191,12 @@
       }
     } catch (error) {
       setStatus(bridgeStatus, `${error.message} Bitte zuerst die lokale Bridge installieren.`, "error");
-      addAgent();
+      if (!agentsContainer.querySelector(".agent-card")) {
+        addAgent();
+      }
+    } finally {
+      loadInProgress = false;
+      reloadButton.disabled = false;
     }
   }
 
