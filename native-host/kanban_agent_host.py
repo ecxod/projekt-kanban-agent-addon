@@ -612,7 +612,7 @@ def manager_configure_local(arguments: list[str]) -> dict[str, Any]:
         agents.append(replacement)
     normalized = manager_save_config({"version": 1, "agents": agents})
     saved = next(agent for agent in normalized["agents"] if agent["id"] == agent_id)
-    return {"message": "Agentenkonfiguration gespeichert.", "agent": public_agent(saved)}
+    return {"message": "Agent configuration saved.", "agent": public_agent(saved)}
 
 
 def manager_set_enabled(agent_id_value: str, enabled: bool) -> dict[str, Any]:
@@ -627,7 +627,7 @@ def manager_set_enabled(agent_id_value: str, enabled: bool) -> dict[str, Any]:
     if not matched:
         raise ProtocolError("AGENT_NOT_FOUND", f"Unknown agent: {agent_id}")
     manager_save_config(config)
-    return {"message": "Agent aktiviert." if enabled else "Agent deaktiviert.", "agentId": agent_id, "enabled": enabled}
+    return {"message": "Agent enabled." if enabled else "Agent disabled.", "agentId": agent_id, "enabled": enabled}
 
 
 def manager_agent(agent: dict[str, Any]) -> dict[str, Any]:
@@ -818,7 +818,7 @@ class NativeHost:
                 raise ProtocolError("AGENT_UNAVAILABLE", f"Agent program not found: {executable}")
             start_directory = str(default_local_home(agent)) if agent["sandbox"] == "danger-full-access" else agent["workspace"]
             verify_local_workspace(start_directory)
-            return {"message": f"{agent['label']} ist lokal erreichbar.", "agent": public_agent(agent)}
+            return {"message": f"{agent['label']} is reachable locally.", "agent": public_agent(agent)}
 
         directory_check = 'test -d "$HOME"' if agent["sandbox"] == "danger-full-access" else f"test -d {shlex.quote(agent['workspace'])}"
         remote_check = f"command -v {shlex.quote(agent['executable'])} >/dev/null && {directory_check}"
@@ -832,7 +832,7 @@ class NativeHost:
         )
         if completed.returncode != 0:
             raise ProtocolError("AGENT_UNAVAILABLE", truncate_text(completed.stderr.decode("utf-8", errors="replace"), 2000) or "Remote agent is unavailable.")
-        return {"message": f"{agent['label']} ist über SSH erreichbar.", "agent": public_agent(agent)}
+        return {"message": f"{agent['label']} is reachable over SSH.", "agent": public_agent(agent)}
 
     def start_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         config = self.load_config()

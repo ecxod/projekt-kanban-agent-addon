@@ -20,13 +20,13 @@ $WslCommand = Get-Command 'wsl.exe' -ErrorAction Stop
 
 function Normalize-DistributionName {
     param([string]$Name)
-    return $Name.Replace([char]0, '').Trim([char]0xfeff).Trim()
+    return $Name.Replace([string][char]0, [string]::Empty).Trim([char]0xfeff).Trim()
 }
 
 function Get-WslDistributions {
     $Names = New-Object System.Collections.Generic.List[string]
     try {
-        $Raw = ((& $WslCommand.Path --list --quiet 2>$null) | Out-String).Replace([char]0, '')
+        $Raw = ((& $WslCommand.Path --list --quiet 2>$null) | Out-String).Replace([string][char]0, [string]::Empty)
         foreach ($Line in ($Raw -split "`r?`n")) {
             $Name = Normalize-DistributionName $Line
             if ($Name -and -not $Names.Contains($Name)) { $Names.Add($Name) }
@@ -49,20 +49,20 @@ function Get-WslDistributions {
 }
 
 function Add-Label {
-    param([string]$Text, [int]$Top)
+    param([string]$Text, [int]$Top, [System.Windows.Forms.TabPage]$Page)
     $Label = New-Object System.Windows.Forms.Label
     $Label.Text = $Text
-    $Label.Left = 24
+    $Label.Left = 16
     $Label.Top = $Top
     $Label.Width = 180
     $Label.Height = 24
     $Label.Font = New-Object System.Drawing.Font('Segoe UI', 10)
-    $Form.Controls.Add($Label)
+    $Page.Controls.Add($Label)
     return $Label
 }
 
 function New-TextBox {
-    param([int]$Top, [string]$Value = '')
+    param([int]$Top, [string]$Value = '', [System.Windows.Forms.TabPage]$Page)
     $Control = New-Object System.Windows.Forms.TextBox
     $Control.Left = 205
     $Control.Top = $Top - 3
@@ -70,16 +70,39 @@ function New-TextBox {
     $Control.Height = 28
     $Control.Text = $Value
     $Control.Font = New-Object System.Drawing.Font('Segoe UI', 10)
-    $Form.Controls.Add($Control)
+    $Page.Controls.Add($Control)
     return $Control
 }
 
+function Write-Log {
+    param([string]$Message)
+    if ($null -eq $LogBox) {
+        return
+    }
+    $Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $LogBox.AppendText("[$Timestamp] $Message`r`n")
+    $LogBox.SelectionStart = $LogBox.TextLength
+    $LogBox.ScrollToCaret()
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
 function Write-Status {
-    param([string]$Message, [bool]$Error = $false)
-    $StatusBox.ForeColor = if ($Error) { [System.Drawing.Color]::DarkRed } else { [System.Drawing.Color]::DarkGreen }
+    param([string]$Message)
+    $StatusBox.ForeColor = [System.Drawing.Color]::DarkGreen
     $StatusBox.Text = $Message
     $StatusBox.SelectionStart = $StatusBox.TextLength
     $StatusBox.ScrollToCaret()
+    Write-Log "INFO: $Message"
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+function Write-ErrorStatus {
+    param([string]$Message)
+    $StatusBox.ForeColor = [System.Drawing.Color]::DarkRed
+    $StatusBox.Text = $Message
+    $StatusBox.SelectionStart = $StatusBox.TextLength
+    $StatusBox.ScrollToCaret()
+    Write-Log "ERROR: $Message"
     [System.Windows.Forms.Application]::DoEvents()
 }
 
@@ -87,7 +110,7 @@ function Get-Distribution {
     $Value = [string]$DistributionBox.Text
     $Value = $Value.Trim()
     if (-not $Value) {
-        throw 'Bitte eine WSL-Distribution auswählen.'
+        throw 'Please select a WSL distribution.'
     }
     return $Value
 }
@@ -95,7 +118,7 @@ function Get-Distribution {
 function Get-WslHostPath {
     param([string]$Distribution)
     if (-not (Test-Path -LiteralPath $InstalledHost -PathType Leaf)) {
-        throw 'Die Bridge ist noch nicht installiert. Bitte zuerst „Installieren / aktualisieren“ wählen.'
+        throw 'The bridge is not installed yet. Click "Install / update bridge" first.'
     }
     $Output = @(& $WslCommand.Path --distribution $Distribution --exec wslpath -a -u $InstalledHost)
     if ($LASTEXITCODE -ne 0 -or $Output.Count -eq 0) {
@@ -127,10 +150,10 @@ function Invoke-ManagerHost {
 
 function Get-SandboxValue {
     switch ([string]$SandboxBox.SelectedItem) {
-        'Nur lesen (Dry-Run)' { return 'read-only' }
-        'Arbeitsbereich schreiben' { return 'workspace-write' }
-        'Uneingeschränkter Zugriff' { return 'danger-full-access' }
-        default { throw 'Bitte eine Zugriffsart auswählen.' }
+        'Read-only (Dry Run)' { return 'read-only' }
+        'Workspace write' { return 'workspace-write' }
+        'Unrestricted access' { return 'danger-full-access' }
+        default { throw 'Please select an access mode.' }
     }
 }
 
@@ -141,10 +164,10 @@ function Save-AgentConfiguration {
     $Sandbox = Get-SandboxValue
     $Workspace = $WorkspaceBox.Text.Trim()
     if (-not $AgentId -or -not $Label -or -not $Executable) {
-        throw 'Agent-ID, Anzeigename und Agentenprogramm müssen ausgefüllt sein.'
+        throw 'Agent ID, display name, and executable are required.'
     }
     if ($Sandbox -ne 'danger-full-access' -and -not $Workspace) {
-        throw 'Für diesen Modus muss ein Arbeitsbereich angegeben werden.'
+        throw 'A workspace is required for this access mode.'
     }
     if ($Sandbox -eq 'danger-full-access') {
         $Workspace = '__HOME__'
@@ -155,26 +178,46 @@ function Save-AgentConfiguration {
     return $Data
 }
 
+$SaveButton = $null
+$TestButton = $null
+$EnableButton = $null
+$DisableButton = $null
+$UninstallButton = $null
+
+function Update-ActionButtons {
+    param([bool]$BridgeAvailable, [object]$Agent)
+    $hasAgent = $null -ne $Agent
+    $agentEnabled = $hasAgent -and [bool]$Agent.enabled
+    if ($null -ne $SaveButton) { $SaveButton.Enabled = $BridgeAvailable }
+    if ($null -ne $TestButton) { $TestButton.Enabled = $BridgeAvailable -and $agentEnabled }
+    if ($null -ne $EnableButton) { $EnableButton.Enabled = $BridgeAvailable -and $hasAgent -and -not $agentEnabled }
+    if ($null -ne $DisableButton) { $DisableButton.Enabled = $BridgeAvailable -and $agentEnabled }
+    if ($null -ne $UninstallButton) { $UninstallButton.Enabled = $BridgeAvailable }
+}
+
 function Refresh-Status {
     try {
         $Data = Invoke-ManagerHost @('--manager-status')
         $Agent = @($Data.agents | Where-Object { $_.id -eq $AgentIdBox.Text.Trim() }) | Select-Object -First 1
         if ($null -eq $Agent) {
-            Write-Status "Bridge $($Data.version) ist installiert. Der Agent ist noch nicht konfiguriert."
+            Update-ActionButtons $true $null
+            Write-Status "Bridge $($Data.version) is installed. The agent is not configured yet."
         } else {
             $AgentLabelBox.Text = [string]$Agent.label
             $ExecutableBox.Text = [string]$Agent.executable
             if ([string]$Agent.workspace) { $WorkspaceBox.Text = [string]$Agent.workspace }
             switch ([string]$Agent.sandbox) {
-                'read-only' { $SandboxBox.SelectedItem = 'Nur lesen (Dry-Run)' }
-                'workspace-write' { $SandboxBox.SelectedItem = 'Arbeitsbereich schreiben' }
-                'danger-full-access' { $SandboxBox.SelectedItem = 'Uneingeschränkter Zugriff' }
+                'read-only' { $SandboxBox.SelectedItem = 'Read-only (Dry Run)' }
+                'workspace-write' { $SandboxBox.SelectedItem = 'Workspace write' }
+                'danger-full-access' { $SandboxBox.SelectedItem = 'Unrestricted access' }
             }
-            $State = if ($Agent.enabled) { 'AKTIV' } else { 'DEAKTIVIERT' }
-            Write-Status "Bridge $($Data.version) verbunden.`r`nAgent „$($Agent.label)“: $State"
+            $State = if ($Agent.enabled) { 'ENABLED' } else { 'DISABLED' }
+            Update-ActionButtons $true $Agent
+            Write-Status "Bridge $($Data.version) connected.`r`nAgent '$($Agent.label)': $State"
         }
     } catch {
-        Write-Status $_.Exception.Message $true
+        Update-ActionButtons $false $null
+        Write-ErrorStatus $_.Exception.Message
     }
 }
 
@@ -185,31 +228,59 @@ $Form.ClientSize = New-Object System.Drawing.Size(710, 600)
 $Form.MinimumSize = New-Object System.Drawing.Size(726, 639)
 $Form.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 
+$Tabs = New-Object System.Windows.Forms.TabControl
+$Tabs.Left = 8
+$Tabs.Top = 6
+$Tabs.Width = 694
+$Tabs.Height = 588
+$ManagerPage = New-Object System.Windows.Forms.TabPage
+$ManagerPage.Text = 'Manager'
+$SettingsPage = New-Object System.Windows.Forms.TabPage
+$SettingsPage.Text = 'Settings'
+$LogPage = New-Object System.Windows.Forms.TabPage
+$LogPage.Text = 'Log'
+$HelpPage = New-Object System.Windows.Forms.TabPage
+$HelpPage.Text = 'Help'
+[void]$Tabs.TabPages.Add($ManagerPage)
+[void]$Tabs.TabPages.Add($SettingsPage)
+[void]$Tabs.TabPages.Add($LogPage)
+[void]$Tabs.TabPages.Add($HelpPage)
+$Form.Controls.Add($Tabs)
+
 $Title = New-Object System.Windows.Forms.Label
 $Title.Text = 'Projekt Kanban Agent Manager'
-$Title.Left = 24
+$Title.Left = 16
 $Title.Top = 18
 $Title.Width = 650
 $Title.Height = 34
 $Title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 18)
-$Form.Controls.Add($Title)
+$ManagerPage.Controls.Add($Title)
 
 $Description = New-Object System.Windows.Forms.Label
-$Description.Text = 'Installiert die Windows-WSL-Bridge und verwaltet einen lokalen Codex-Agenten.'
-$Description.Left = 26
+$Description.Text = 'Installs the Windows-WSL bridge and manages a local Codex agent.'
+$Description.Left = 18
 $Description.Top = 55
 $Description.Width = 650
 $Description.Height = 25
 $Description.ForeColor = [System.Drawing.Color]::DimGray
-$Form.Controls.Add($Description)
+$ManagerPage.Controls.Add($Description)
 
-Add-Label 'WSL-Distribution' 98 | Out-Null
+$SettingsTitle = New-Object System.Windows.Forms.Label
+$SettingsTitle.Text = 'Agent settings'
+$SettingsTitle.Left = 16
+$SettingsTitle.Top = 18
+$SettingsTitle.Width = 650
+$SettingsTitle.Height = 34
+$SettingsTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 18)
+$SettingsPage.Controls.Add($SettingsTitle)
+
+Add-Label 'WSL distribution' 98 $SettingsPage | Out-Null
 $DistributionBox = New-Object System.Windows.Forms.ComboBox
 $DistributionBox.Left = 205
 $DistributionBox.Top = 94
 $DistributionBox.Width = 455
 $DistributionBox.DropDownStyle = 'DropDown'
-$Form.Controls.Add($DistributionBox)
+$SettingsPage.Controls.Add($DistributionBox)
 
 $InitialDistribution = Normalize-DistributionName $InitialDistribution
 $Distributions = @(Get-WslDistributions)
@@ -223,115 +294,173 @@ if ($InitialDistribution -and $DistributionBox.Items.Contains($InitialDistributi
     $DistributionBox.SelectedItem = $InitialDistribution
 }
 
-Add-Label 'Agent-ID' 140 | Out-Null
-$AgentIdBox = New-TextBox 140 'local-codex'
-Add-Label 'Anzeigename' 182 | Out-Null
-$AgentLabelBox = New-TextBox 182 'Codex in WSL'
-Add-Label 'Agentenprogramm (WSL)' 224 | Out-Null
-$ExecutableBox = New-TextBox 224 "/mnt/c/Users/$env:USERNAME/.codex/bin/wsl/codex"
-Add-Label 'Zugriffsart' 266 | Out-Null
+Add-Label 'Agent ID' 140 $SettingsPage | Out-Null
+$AgentIdBox = New-TextBox 140 'local-codex' $SettingsPage
+Add-Label 'Display name' 182 $SettingsPage | Out-Null
+$AgentLabelBox = New-TextBox 182 'Codex in WSL' $SettingsPage
+Add-Label 'Agent executable (WSL)' 224 $SettingsPage | Out-Null
+$ExecutableBox = New-TextBox 224 "/mnt/c/Users/$env:USERNAME/.codex/bin/wsl/codex" $SettingsPage
+Add-Label 'Access mode' 266 $SettingsPage | Out-Null
 $SandboxBox = New-Object System.Windows.Forms.ComboBox
 $SandboxBox.Left = 205
 $SandboxBox.Top = 262
 $SandboxBox.Width = 455
 $SandboxBox.DropDownStyle = 'DropDownList'
-[void]$SandboxBox.Items.Add('Nur lesen (Dry-Run)')
-[void]$SandboxBox.Items.Add('Arbeitsbereich schreiben')
-[void]$SandboxBox.Items.Add('Uneingeschränkter Zugriff')
+[void]$SandboxBox.Items.Add('Read-only (Dry Run)')
+[void]$SandboxBox.Items.Add('Workspace write')
+[void]$SandboxBox.Items.Add('Unrestricted access')
 $SandboxBox.SelectedIndex = 1
-$Form.Controls.Add($SandboxBox)
+$SettingsPage.Controls.Add($SandboxBox)
 
-$WorkspaceLabel = Add-Label 'Arbeitsbereich (WSL)' 308
-$WorkspaceBox = New-TextBox 308 "/mnt/c/Users/$env:USERNAME/workspace"
+$WorkspaceLabel = Add-Label 'Workspace (WSL)' 308 $SettingsPage
+$WorkspaceBox = New-TextBox 308 "/mnt/c/Users/$env:USERNAME/workspace" $SettingsPage
 $WorkspaceHint = New-Object System.Windows.Forms.Label
 $WorkspaceHint.Left = 205
 $WorkspaceHint.Top = 337
 $WorkspaceHint.Width = 455
 $WorkspaceHint.Height = 36
-$WorkspaceHint.Text = 'Enthält beliebig viele Projekte. Bei uneingeschränktem Zugriff wird automatisch das Benutzer-Home verwendet.'
+$WorkspaceHint.Text = 'Can contain multiple projects. Unrestricted access uses the agent user home automatically.'
 $WorkspaceHint.ForeColor = [System.Drawing.Color]::DimGray
 $WorkspaceHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
-$Form.Controls.Add($WorkspaceHint)
+$SettingsPage.Controls.Add($WorkspaceHint)
 
 $StatusBox = New-Object System.Windows.Forms.TextBox
-$StatusBox.Left = 24
-$StatusBox.Top = 385
-$StatusBox.Width = 636
-$StatusBox.Height = 78
+$StatusBox.Left = 16
+$StatusBox.Top = 90
+$StatusBox.Width = 662
+$StatusBox.Height = 300
 $StatusBox.Multiline = $true
 $StatusBox.ReadOnly = $true
-$StatusBox.ScrollBars = 'Vertical'
-$StatusBox.Text = 'Bereit.'
-$Form.Controls.Add($StatusBox)
+$StatusBox.ScrollBars = 'Both'
+$StatusBox.WordWrap = $false
+$StatusBox.Text = 'Ready.'
+$ManagerPage.Controls.Add($StatusBox)
+
+$LogBox = New-Object System.Windows.Forms.TextBox
+$LogBox.Multiline = $true
+$LogBox.ReadOnly = $true
+$LogBox.ScrollBars = 'Both'
+$LogBox.WordWrap = $false
+$LogBox.Dock = 'Fill'
+$LogBox.Font = New-Object System.Drawing.Font('Consolas', 9)
+$LogPage.Controls.Add($LogBox)
+
+$HelpBox = New-Object System.Windows.Forms.TextBox
+$HelpBox.Multiline = $true
+$HelpBox.ReadOnly = $true
+$HelpBox.ScrollBars = 'Vertical'
+$HelpBox.WordWrap = $true
+$HelpBox.Dock = 'Fill'
+$HelpBox.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$HelpBox.Text = @'
+Help for the Projekt Kanban Agent Manager
+
+Tabs
+Manager: Run actions and view the current status.
+Settings: Configure the WSL distribution, agent, executable, access mode, and workspace.
+Log: View timestamped information and error messages.
+Help: View this explanation.
+
+Settings
+WSL distribution: The Linux distribution where the Native Host and Codex run.
+Agent ID: The unique internal identifier of the agent.
+Display name: The readable name used in status messages.
+Agent executable (WSL): The absolute WSL path to the Codex executable.
+Access mode: Controls what the agent is allowed to change.
+Workspace (WSL): The directory where the agent is allowed to work.
+
+Access modes
+Read-only (Dry Run): The agent may analyze, but cannot change files.
+Workspace write: The agent may read and write inside the configured workspace.
+Unrestricted access: The agent may access the entire agent user's account.
+Use this option only when you explicitly accept the additional risk.
+
+Buttons
+Install / update bridge: Installs the Windows-WSL bridge and runs its self-test.
+Save agent configuration: Saves the Settings values in WSL.
+Test Codex connection: Checks whether Codex and the workspace are reachable.
+Enable agent for tasks: Allows new tasks for this agent.
+Disable agent and cancel runs: Prevents new tasks and cancels active tasks.
+Uninstall Windows bridge: Removes the Windows bridge but keeps settings and run history.
+
+The agent does not run permanently. Firefox starts Codex only after a task
+has been confirmed and sent from the Kanban page.
+'@
+$HelpPage.Controls.Add($HelpBox)
 
 $ButtonPanel = New-Object System.Windows.Forms.FlowLayoutPanel
-$ButtonPanel.Left = 20
-$ButtonPanel.Top = 480
-$ButtonPanel.Width = 650
-$ButtonPanel.Height = 80
+$ButtonPanel.Left = 10
+$ButtonPanel.Top = 400
+$ButtonPanel.Width = 674
+$ButtonPanel.Height = 100
 $ButtonPanel.AutoSize = $false
 $ButtonPanel.WrapContents = $true
-$Form.Controls.Add($ButtonPanel)
+$ManagerPage.Controls.Add($ButtonPanel)
+
+$SettingsButtonPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+$SettingsButtonPanel.Left = 10
+$SettingsButtonPanel.Top = 400
+$SettingsButtonPanel.Width = 674
+$SettingsButtonPanel.Height = 100
+$SettingsButtonPanel.AutoSize = $false
+$SettingsButtonPanel.WrapContents = $true
+$SettingsPage.Controls.Add($SettingsButtonPanel)
 
 function Add-ActionButton {
-    param([string]$Text, [int]$Width, [scriptblock]$Action)
+    param([string]$Text, [int]$Width, [scriptblock]$Action, [System.Windows.Forms.FlowLayoutPanel]$Panel = $ButtonPanel)
     $Button = New-Object System.Windows.Forms.Button
     $Button.Text = $Text
     $Button.Width = $Width
     $Button.Height = 34
     $Button.Add_Click($Action)
-    $ButtonPanel.Controls.Add($Button)
+    $Panel.Controls.Add($Button)
     return $Button
 }
 
-Add-ActionButton 'Installieren / aktualisieren' 190 {
+$InstallButton = Add-ActionButton 'Install / update bridge' 210 {
     try {
         if (Get-Process -Name 'projekt-kanban-agent-wsl' -ErrorAction SilentlyContinue) {
-            throw 'Firefox verwendet die Bridge noch. Bitte Firefox vollständig schließen und danach erneut installieren.'
+            throw 'Firefox is still using the bridge. Close Firefox completely and try again.'
         }
-        Write-Status 'Bridge wird installiert und geprüft …'
+        Write-Status 'Installing and testing the bridge …'
         $Distribution = Get-Distribution
         $Output = @(& $InstallScript -Distribution $Distribution 2>&1)
         if ($LASTEXITCODE -ne 0) { throw ($Output -join "`n") }
-        [void](Save-AgentConfiguration)
-        Write-Status (($Output -join "`r`n") + "`r`nAgentenkonfiguration gespeichert.")
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
+        $Saved = Save-AgentConfiguration
+        Write-Status (($Output -join "`r`n") + "`r`nAgent configuration saved.")
+        Update-ActionButtons $true $Saved.agent
+    } catch { Write-ErrorStatus $_.Exception.Message }
+}
 
-Add-ActionButton 'Konfiguration speichern' 180 {
+$SaveButton = Add-ActionButton 'Save agent configuration' 210 {
     try {
-        [void](Save-AgentConfiguration)
-        Write-Status 'Agentenkonfiguration wurde gespeichert.'
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
+        $Saved = Save-AgentConfiguration
+        Write-Status 'Agent configuration saved.'
+        Update-ActionButtons $true $Saved.agent
+    } catch { Write-ErrorStatus $_.Exception.Message }
+} -Panel $SettingsButtonPanel
 
-Add-ActionButton 'Verbindung testen' 145 {
+$EnableButton = Add-ActionButton 'Enable agent for tasks' 180 {
     try {
-        [void](Save-AgentConfiguration)
-        $Data = Invoke-ManagerHost @('--manager-ping', $AgentIdBox.Text.Trim())
-        Write-Status ([string]$Data.message)
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
-
-Add-ActionButton 'Agent starten (aktivieren)' 190 {
-    try {
-        [void](Save-AgentConfiguration)
+        $Saved = Save-AgentConfiguration
         [void](Invoke-ManagerHost @('--manager-enable', $AgentIdBox.Text.Trim()))
-        Write-Status 'Agent ist aktiviert. Firefox startet ihn automatisch für freigegebene Tasks.'
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
+        Write-Status 'Agent enabled. Firefox will start it automatically for confirmed tasks.'
+        Update-ActionButtons $true ([pscustomobject]@{ enabled = $true })
+    } catch { Write-ErrorStatus $_.Exception.Message }
+}
 
-Add-ActionButton 'Agent stoppen (deaktivieren)' 205 {
+$DisableButton = Add-ActionButton 'Disable agent and cancel runs' 220 {
     try {
         $Data = Invoke-ManagerHost @('--manager-disable', $AgentIdBox.Text.Trim())
         $Stopped = @($Data.cancelledRuns).Count
-        Write-Status "Agent ist deaktiviert. Laufende Agentenprozesse beendet: $Stopped."
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
+        Write-Status "Agent disabled. Active agent processes cancelled: $Stopped."
+        Update-ActionButtons $true ([pscustomobject]@{ enabled = $false })
+    } catch { Write-ErrorStatus $_.Exception.Message }
+}
 
-Add-ActionButton 'Deinstallieren' 120 {
+$UninstallButton = Add-ActionButton 'Uninstall Windows bridge' 190 {
     $Choice = [System.Windows.Forms.MessageBox]::Show(
-        'Bridge wirklich deinstallieren? Agenteneinstellungen und Laufhistorie in WSL bleiben erhalten.',
+        'Uninstall the bridge? Agent settings and run history in WSL will be kept.',
         'Projekt Kanban Agent Manager',
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
@@ -341,11 +470,21 @@ Add-ActionButton 'Deinstallieren' 120 {
         $Output = @(& $UninstallScript 2>&1)
         if ($LASTEXITCODE -ne 0) { throw ($Output -join "`n") }
         Write-Status ($Output -join "`r`n")
-    } catch { Write-Status $_.Exception.Message $true }
-} | Out-Null
+        Update-ActionButtons $false $null
+    } catch { Write-ErrorStatus $_.Exception.Message }
+}
+
+$TestButton = Add-ActionButton 'Test Codex connection' 180 {
+    try {
+        $Saved = Save-AgentConfiguration
+        $Data = Invoke-ManagerHost @('--manager-ping', $AgentIdBox.Text.Trim())
+        Write-Status ([string]$Data.message)
+        Update-ActionButtons $true $Saved.agent
+    } catch { Write-ErrorStatus $_.Exception.Message }
+}
 
 $SandboxBox.Add_SelectedIndexChanged({
-    $Restricted = ([string]$SandboxBox.SelectedItem) -ne 'Uneingeschränkter Zugriff'
+    $Restricted = ([string]$SandboxBox.SelectedItem) -ne 'Unrestricted access'
     $WorkspaceLabel.Enabled = $Restricted
     $WorkspaceBox.Enabled = $Restricted
 })

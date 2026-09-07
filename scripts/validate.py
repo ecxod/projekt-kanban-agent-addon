@@ -85,10 +85,14 @@ if not windows_manager_bytes.startswith(b"\xef\xbb\xbf"):
 windows_manager = windows_manager_bytes.decode("utf-8-sig")
 for required in [
     "System.Windows.Forms",
-    "Installieren / aktualisieren",
-    "Verbindung testen",
-    "Agent starten (aktivieren)",
-    "Agent stoppen (deaktivieren)",
+    "Install / update bridge",
+    "Save agent configuration",
+    "Test Codex connection",
+    "Enable agent for tasks",
+    "Disable agent and cancel runs",
+    "SettingsPage",
+    "HelpPage",
+    "SettingsButtonPanel",
     "--manager-configure-local",
     "InitialDistribution",
     "Get-WslDistributions",
