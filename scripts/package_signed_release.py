@@ -69,7 +69,7 @@ with BUNDLE.open("wb") as raw_handle:
             for source, relative, mode in files:
                 bundle_file(archive, source, relative, mode)
 
-artifacts = [UNSIGNED_XPI, SIGNED_XPI, SOURCE, BUNDLE]
+artifacts = [SIGNED_XPI, SOURCE, BUNDLE]
 CHECKSUMS.write_text("\n".join(
     f"{hashlib.sha256(artifact.read_bytes()).hexdigest()}  {artifact.name}"
     for artifact in artifacts
