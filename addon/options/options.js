@@ -59,7 +59,7 @@
     card.classList.toggle("is-disabled", !enabled);
     card.querySelector(".agent-state-badge").textContent = enabled ? "Aktiv" : "Deaktiviert";
     card.querySelector(".toggle-agent").textContent = enabled ? "Deaktivieren" : "Aktivieren";
-    card.querySelector(".test-agent").disabled = !enabled;
+    card.querySelector(".test-agent").disabled = !enabled || !hostCompatible;
   }
 
   function addAgent(agent = {}) {
@@ -100,6 +100,10 @@
     });
     card.querySelector(".test-agent").addEventListener("click", async () => {
       const status = card.querySelector(".agent-status");
+      if (!hostCompatible) {
+        setStatus(status, bridgeStatus.textContent || `Bitte zuerst Native Host ${expectedHostVersion} installieren.`, "error");
+        return;
+      }
       try {
         await saveAgents();
         setStatus(status, "Verbindung wird geprüft …");
@@ -170,6 +174,9 @@
     document.getElementById("save").disabled = true;
     document.getElementById("addAgent").disabled = true;
     reloadButton.disabled = true;
+    for (const card of agentsContainer.querySelectorAll(".agent-card")) {
+      updateEnabled(card, card.dataset.enabled !== "false");
+    }
     setStatus(bridgeStatus, "Verbindung wird geprüft …");
     setStatus(saveStatus, "");
     try {
@@ -188,6 +195,9 @@
       }
       if (!config.agents || !config.agents.length) {
         addAgent();
+      }
+      for (const card of agentsContainer.querySelectorAll(".agent-card")) {
+        updateEnabled(card, card.dataset.enabled !== "false");
       }
     } catch (error) {
       setStatus(bridgeStatus, `${error.message} Bitte zuerst die lokale Bridge installieren.`, "error");
