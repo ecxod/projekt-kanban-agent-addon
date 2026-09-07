@@ -313,7 +313,7 @@ $SandboxBox.SelectedIndex = 1
 $SettingsPage.Controls.Add($SandboxBox)
 
 $WorkspaceLabel = Add-Label 'Workspace (WSL)' 308 $SettingsPage
-$WorkspaceBox = New-TextBox 308 "/mnt/c/Users/$env:USERNAME/workspace" $SettingsPage
+$WorkspaceBox = New-TextBox 308 "/mnt/c/Users/$env:USERNAME/projekt-kanban" $SettingsPage
 $WorkspaceHint = New-Object System.Windows.Forms.Label
 $WorkspaceHint.Left = 205
 $WorkspaceHint.Top = 337
