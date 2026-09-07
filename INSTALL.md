@@ -2,8 +2,17 @@
 
 ## Windows Firefox with an agent in WSL
 
-Extract `projekt-kanban-agent-0.1.5-windows-wsl.zip`, open PowerShell in the
-extracted directory, and run:
+Extract `projekt-kanban-agent-0.1.6-windows-wsl.zip` and double-click:
+
+```text
+native-host-windows-wsl\start-agent-manager.cmd
+```
+
+The graphical manager lets you select the WSL distribution, enter the Codex
+and workspace paths, install/update the bridge, test it, activate/deactivate
+the agent, and uninstall the bridge.
+
+For a command-line installation, open PowerShell in the extracted directory and run:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1
@@ -56,7 +65,7 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.5-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.6-signed.xpi` from the extracted bundle.
 5. Confirm with **Add**.
 
 ## Configure an agent
@@ -69,6 +78,10 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 
 Provider credentials remain in the provider's own CLI or operating-system
 credential store. Do not put API keys or passwords into the add-on fields.
+
+On Linux, `native-host/agent-manager.sh` combines installation, configuration,
+testing, activation/deactivation, and removal in one menu. It does not install a
+daemon or require systemd.
 
 ## Verify the download
 

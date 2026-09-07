@@ -28,7 +28,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024
@@ -578,6 +578,120 @@ def run_job(job_directory: Path) -> int:
     return exit_code
 
 
+def manager_load_config() -> dict[str, Any]:
+    path = config_root() / "projekt-kanban-agent" / "config.json"
+    return validate_config(load_json(path, {"version": 1, "agents": []}))
+
+
+def manager_save_config(config: dict[str, Any]) -> dict[str, Any]:
+    normalized = validate_config(config)
+    atomic_write_json(config_root() / "projekt-kanban-agent" / "config.json", normalized)
+    return normalized
+
+
+def manager_configure_local(arguments: list[str]) -> dict[str, Any]:
+    if len(arguments) != 5:
+        raise ProtocolError("INVALID_MANAGER_COMMAND", "Configure requires agent ID, label, executable, sandbox, and workspace.")
+    agent_id, label, executable, sandbox, workspace = arguments
+    config = manager_load_config()
+    existing = next((agent for agent in config["agents"] if agent["id"] == agent_id), None)
+    replacement = {
+        "id": agent_id,
+        "enabled": existing["enabled"] if existing else True,
+        "label": label,
+        "adapter": "codex-exec",
+        "transport": "local",
+        "executable": executable,
+        "arguments": [],
+        "sshHost": "",
+        "sandbox": sandbox,
+        "workspace": "" if sandbox == "danger-full-access" else workspace,
+    }
+    agents = [replacement if agent["id"] == agent_id else agent for agent in config["agents"]]
+    if existing is None:
+        agents.append(replacement)
+    normalized = manager_save_config({"version": 1, "agents": agents})
+    saved = next(agent for agent in normalized["agents"] if agent["id"] == agent_id)
+    return {"message": "Agentenkonfiguration gespeichert.", "agent": public_agent(saved)}
+
+
+def manager_set_enabled(agent_id_value: str, enabled: bool) -> dict[str, Any]:
+    agent_id = validate_identifier(agent_id_value, "agent ID")
+    config = manager_load_config()
+    matched = False
+    for agent in config["agents"]:
+        if agent["id"] == agent_id:
+            agent["enabled"] = enabled
+            matched = True
+            break
+    if not matched:
+        raise ProtocolError("AGENT_NOT_FOUND", f"Unknown agent: {agent_id}")
+    manager_save_config(config)
+    return {"message": "Agent aktiviert." if enabled else "Agent deaktiviert.", "agentId": agent_id, "enabled": enabled}
+
+
+def manager_agent(agent: dict[str, Any]) -> dict[str, Any]:
+    result = public_agent(agent)
+    result.update({
+        "executable": agent["executable"],
+        "arguments": agent["arguments"],
+        "sshHost": agent["sshHost"],
+    })
+    return result
+
+
+def manager_disable_agent(agent_id_value: str) -> dict[str, Any]:
+    result = manager_set_enabled(agent_id_value, False)
+    host = NativeHost()
+    cancelled_runs: list[str] = []
+    for directory in host.jobs_directory.iterdir():
+        if not directory.is_dir():
+            continue
+        try:
+            metadata = host.read_metadata(directory)
+        except ProtocolError:
+            continue
+        if metadata.get("agentId") != result["agentId"] or metadata.get("status") not in {"queued", "running"}:
+            continue
+        try:
+            host.cancel_run({"runId": directory.name})
+            cancelled_runs.append(directory.name)
+        except ProtocolError:
+            continue
+    result["cancelledRuns"] = cancelled_runs
+    return result
+
+
+def manager_command(arguments: list[str]) -> dict[str, Any]:
+    if not arguments:
+        raise ProtocolError("INVALID_MANAGER_COMMAND", "A manager command is required.")
+    command, *values = arguments
+    if command == "--manager-status" and not values:
+        config = manager_load_config()
+        return {"version": VERSION, "agents": [manager_agent(agent) for agent in config["agents"]]}
+    if command == "--manager-configure-local":
+        return manager_configure_local(values)
+    if command == "--manager-enable" and len(values) == 1:
+        return manager_set_enabled(values[0], True)
+    if command == "--manager-disable" and len(values) == 1:
+        return manager_disable_agent(values[0])
+    if command == "--manager-ping" and len(values) == 1:
+        return NativeHost().ping_agent({"agentId": values[0]})
+    raise ProtocolError("INVALID_MANAGER_COMMAND", f"Unsupported manager command: {command}")
+
+
+def run_manager_command(arguments: list[str]) -> int:
+    try:
+        print(json.dumps({"ok": True, "data": manager_command(arguments)}, ensure_ascii=False))
+        return 0
+    except ProtocolError as error:
+        print(json.dumps({"ok": False, "error": {"code": error.code, "message": str(error)}}, ensure_ascii=False))
+        return 2
+    except Exception as error:
+        print(json.dumps({"ok": False, "error": {"code": "MANAGER_ERROR", "message": f"{type(error).__name__}: {error}"}}, ensure_ascii=False))
+        return 3
+
+
 class NativeHost:
     def __init__(self, wire_format: str = "native") -> None:
         self.wire_format = wire_format
@@ -856,6 +970,8 @@ def main() -> int:
         return 0
     if len(sys.argv) == 3 and sys.argv[1] == "--run-job":
         return run_job(Path(sys.argv[2]).resolve())
+    if len(sys.argv) >= 2 and sys.argv[1].startswith("--manager-"):
+        return run_manager_command(sys.argv[1:])
     wire_format = "base64-lines" if len(sys.argv) == 2 and sys.argv[1] == "--base64-native-bridge" else "native"
     NativeHost(wire_format).serve()
     return 0

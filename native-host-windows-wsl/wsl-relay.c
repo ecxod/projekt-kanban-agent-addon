@@ -491,7 +491,11 @@ static int self_test(child_process *child) {
     free(response);
     int success = strstr(text, "\"requestId\":\"relay-self-test\"") != NULL &&
                   strstr(text, "\"ok\":true") != NULL &&
-                  strstr(text, "\"version\":\"0.1.5\"") != NULL;
+                  strstr(text, "\"name\":\"de.projekt_kanban.agent\"") != NULL &&
+                  strstr(text, "\"protocol\":1") != NULL;
+    if (!success) {
+        log_error(L"The WSL native host returned an unexpected relay self-test response.");
+    }
     free(text);
     return success ? 0 : 1;
 }

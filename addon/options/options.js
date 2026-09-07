@@ -5,6 +5,8 @@
   const template = document.getElementById("agentTemplate");
   const bridgeStatus = document.getElementById("bridgeStatus");
   const saveStatus = document.getElementById("saveStatus");
+  const expectedHostVersion = browser.runtime.getManifest().version;
+  let hostCompatible = false;
 
   function setStatus(element, message, type = "") {
     element.textContent = message;
@@ -145,6 +147,9 @@
   }
 
   async function saveAgents() {
+    if (!hostCompatible) {
+      throw new Error(`Bitte zuerst Native Host ${expectedHostVersion} installieren und danach „Neu laden“ wählen.`);
+    }
     const agents = collectAgents();
     const result = await nativeRequest("config.set", { version: 1, agents });
     for (const status of agentsContainer.querySelectorAll(".agent-status")) {
@@ -155,11 +160,20 @@
   }
 
   async function load() {
+    hostCompatible = false;
+    document.getElementById("save").disabled = true;
+    document.getElementById("addAgent").disabled = true;
     setStatus(bridgeStatus, "Verbindung wird geprüft …");
     setStatus(saveStatus, "");
     agentsContainer.replaceChildren();
     try {
       const hello = await nativeRequest("hello");
+      if (hello.version !== expectedHostVersion) {
+        throw new Error(`Native Host ${hello.version || "unbekannt"} ist nicht kompatibel. Benötigt wird Version ${expectedHostVersion}. Bitte die Bridge aus dem aktuellen Release installieren.`);
+      }
+      hostCompatible = true;
+      document.getElementById("save").disabled = false;
+      document.getElementById("addAgent").disabled = false;
       setStatus(bridgeStatus, `Verbunden mit Native Host ${hello.version}.`, "success");
       const config = await nativeRequest("config.get");
       for (const agent of config.agents || []) {

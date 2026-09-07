@@ -8,6 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $HostName = 'de.projekt_kanban.agent'
+$ExpectedVersion = '0.1.6'
 $ExtensionId = 'projekt-kanban-agent@ecxod.de'
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PackageDirectory = Split-Path -Parent $ScriptDirectory
@@ -30,6 +31,10 @@ $RelayConfigPath = Join-Path $InstallDirectory 'relay-config.txt'
 $LegacyBatchPath = Join-Path $InstallDirectory 'projekt-kanban-agent-wsl.bat'
 $ManifestPath = Join-Path $InstallDirectory "$HostName.json"
 $RegistryPath = "HKCU:\Software\Mozilla\NativeMessagingHosts\$HostName"
+
+if (Get-Process -Name 'projekt-kanban-agent-wsl' -ErrorAction SilentlyContinue) {
+    throw 'The Projekt Kanban relay is still running. Close Firefox completely, then run the installer again.'
+}
 
 New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
 Copy-Item -LiteralPath $SourceHost -Destination $InstalledHost -Force
@@ -58,6 +63,9 @@ if ($LASTEXITCODE -ne 0 -or $SelfTestOutput.Count -eq 0) {
 $SelfTest = ($SelfTestOutput -join "`n") | ConvertFrom-Json
 if ($SelfTest.name -ne $HostName -or $SelfTest.protocol -ne 1) {
     throw 'The WSL native host returned an unexpected self-test response.'
+}
+if ($SelfTest.version -ne $ExpectedVersion) {
+    throw "The installed WSL native host has version $($SelfTest.version), but version $ExpectedVersion is required. Close Firefox and run this installer again."
 }
 
 $RelayConfig = "$($WslCommand.Path)`r`n$Distribution`r`n$WslHostPath`r`n"

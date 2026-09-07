@@ -123,7 +123,7 @@ class HostTests(unittest.TestCase):
         response = json.loads(completed.stdout)
         self.assertEqual(response, {
             "name": "de.projekt_kanban.agent",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "protocol": 1,
         })
 
@@ -248,9 +248,108 @@ class HostTests(unittest.TestCase):
         try:
             response = client.request("hello")
             self.assertTrue(response["ok"])
-            self.assertEqual(response["data"]["version"], "0.1.5")
+            self.assertEqual(response["data"]["version"], "0.1.6")
         finally:
             client.close()
+
+    def test_manager_cli_configures_and_toggles_agent(self) -> None:
+        configured = subprocess.run(
+            [
+                sys.executable,
+                str(HOST_PATH),
+                "--manager-configure-local",
+                "managed-codex",
+                "Managed Codex",
+                str(FAKE_AGENT),
+                "workspace-write",
+                str(self.base),
+            ],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(configured.returncode, 0, configured.stdout + configured.stderr)
+        self.assertTrue(json.loads(configured.stdout)["ok"])
+
+        disabled = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-disable", "managed-codex"],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(disabled.returncode, 0, disabled.stdout + disabled.stderr)
+        disabled_data = json.loads(disabled.stdout)["data"]
+        self.assertFalse(disabled_data["enabled"])
+        self.assertEqual(disabled_data["cancelledRuns"], [])
+
+        status = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-status"],
+            env=self.environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        agents = json.loads(status.stdout)["data"]["agents"]
+        self.assertEqual([(agent["id"], agent["enabled"]) for agent in agents], [("managed-codex", False)])
+
+        enabled = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-enable", "managed-codex"],
+            env=self.environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertTrue(json.loads(enabled.stdout)["data"]["enabled"])
+
+    def test_manager_configures_tests_and_disables_local_agent(self) -> None:
+        configure = subprocess.run(
+            [
+                sys.executable, str(HOST_PATH), "--manager-configure-local",
+                "managed-codex", "Managed Codex", str(FAKE_AGENT),
+                "workspace-write", str(self.base),
+            ],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(configure.returncode, 0, configure.stdout + configure.stderr)
+        configured = json.loads(configure.stdout)
+        self.assertTrue(configured["ok"])
+        self.assertEqual(configured["data"]["agent"]["id"], "managed-codex")
+
+        ping = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-ping", "managed-codex"],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(ping.returncode, 0, ping.stdout + ping.stderr)
+        self.assertTrue(json.loads(ping.stdout)["ok"])
+
+        disabled = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-disable", "managed-codex"],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(disabled.returncode, 0, disabled.stdout + disabled.stderr)
+        self.assertFalse(json.loads(disabled.stdout)["data"]["enabled"])
+
+        status = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--manager-status"],
+            env=self.environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        saved_agent = json.loads(status.stdout)["data"]["agents"][0]
+        self.assertFalse(saved_agent["enabled"])
+        self.assertEqual(saved_agent["workspace"], str(self.base))
 
 
 if __name__ == "__main__":

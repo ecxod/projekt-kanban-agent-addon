@@ -48,7 +48,10 @@ for relative in addon_files:
 for relative in [
     "native-host/kanban_agent_host.py",
     "native-host/feedback-schema.json",
+    "native-host/agent-manager.sh",
     "native-host-windows-wsl/install.ps1",
+    "native-host-windows-wsl/agent-manager.ps1",
+    "native-host-windows-wsl/start-agent-manager.cmd",
     "native-host-windows-wsl/uninstall.ps1",
     "native-host-windows-wsl/wsl-relay.c",
 ]:
@@ -71,6 +74,31 @@ for required in [
 ]:
     if required not in windows_installer:
         fail(f"Windows-WSL installer is missing required behavior: {required}")
+
+if f"$ExpectedVersion = '{manifest['version']}'" not in windows_installer:
+    fail("Windows-WSL installer and extension versions must match")
+
+windows_manager_path = ROOT / "native-host-windows-wsl/agent-manager.ps1"
+windows_manager_bytes = windows_manager_path.read_bytes()
+if not windows_manager_bytes.startswith(b"\xef\xbb\xbf"):
+    fail("Windows PowerShell manager must use a UTF-8 BOM for Windows PowerShell 5.1")
+windows_manager = windows_manager_bytes.decode("utf-8-sig")
+for required in [
+    "System.Windows.Forms",
+    "Installieren / aktualisieren",
+    "Verbindung testen",
+    "Agent starten (aktivieren)",
+    "Agent stoppen (deaktivieren)",
+    "--manager-configure-local",
+]:
+    if required not in windows_manager:
+        fail(f"Windows manager is missing required behavior: {required}")
+
+linux_manager = ROOT / "native-host/agent-manager.sh"
+completed = subprocess.run(["bash", "-n", str(linux_manager)], capture_output=True, text=True)
+if completed.returncode:
+    sys.stderr.write(completed.stderr)
+    fail("Linux agent manager has invalid Bash syntax")
 
 for script in sorted(ADDON.rglob("*.js")):
     completed = subprocess.run(["node", "--check", str(script)], capture_output=True, text=True)

@@ -18,6 +18,22 @@ The native host supports:
   or other coding-agent bridges;
 - local execution and execution on a user-controlled machine over SSH.
 
+## Simple agent manager
+
+The release bundles include a guided manager, so paths and activation do not
+have to be maintained manually in JSON files or shell commands.
+
+- **Windows with WSL:** double-click
+  `native-host-windows-wsl/start-agent-manager.cmd`. The PowerShell window
+  installs or updates the bridge, stores the Codex and workspace paths, tests
+  the connection, activates/deactivates the agent, and uninstalls the bridge.
+- **Linux:** run `native-host/agent-manager.sh`. It uses `dialog` or `whiptail`
+  when available and otherwise provides the same menu directly in the terminal.
+
+Codex is not a permanent service. An active configuration allows Firefox to
+start Codex on demand for a confirmed task. Stopping the agent disables new
+runs and cancels an already running job for that agent.
+
 ## Security model
 
 - No OpenAI, Gemini, SSH, or other provider password is stored in the add-on.

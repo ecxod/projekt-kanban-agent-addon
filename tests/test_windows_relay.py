@@ -82,7 +82,7 @@ class WindowsRelayTests(unittest.TestCase):
         length = struct.unpack("<I", header)[0]
         response = json.loads(process.stdout.read(length))
         self.assertTrue(response["ok"])
-        self.assertEqual(response["data"]["version"], "0.1.5")
+        self.assertEqual(response["data"]["version"], "0.1.6")
         process.stdin.close()
         process.wait(timeout=20)
         process.stdout.close()
