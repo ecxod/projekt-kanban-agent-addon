@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import base64
 import json
 import os
 import shutil
@@ -23,9 +24,10 @@ SPEC.loader.exec_module(host_module)
 
 
 class NativeClient:
-    def __init__(self, environment: dict[str, str]):
+    def __init__(self, environment: dict[str, str], base64_transport: bool = False):
+        self.base64_transport = base64_transport
         self.process = subprocess.Popen(
-            [sys.executable, str(HOST_PATH)],
+            [sys.executable, str(HOST_PATH), *(["--base64-native-bridge"] if base64_transport else [])],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -43,7 +45,10 @@ class NativeClient:
             "payload": payload or {},
         }).encode()
         assert self.process.stdin is not None
-        self.process.stdin.write(struct.pack("<I", len(message)) + message)
+        if self.base64_transport:
+            self.process.stdin.write(base64.b64encode(message) + b"\n")
+        else:
+            self.process.stdin.write(struct.pack("<I", len(message)) + message)
         self.process.stdin.flush()
         while True:
             response = self.read()
@@ -52,6 +57,12 @@ class NativeClient:
 
     def read(self) -> dict:
         assert self.process.stdout is not None
+        if self.base64_transport:
+            line = self.process.stdout.readline()
+            if not line:
+                stderr = self.process.stderr.read().decode(errors="replace") if self.process.stderr else ""
+                raise AssertionError(f"native host ended unexpectedly: {stderr}")
+            return json.loads(base64.b64decode(line.strip(), validate=True))
         header = self.process.stdout.read(4)
         if len(header) != 4:
             stderr = self.process.stderr.read().decode(errors="replace") if self.process.stderr else ""
@@ -111,7 +122,7 @@ class HostTests(unittest.TestCase):
         response = json.loads(completed.stdout)
         self.assertEqual(response, {
             "name": "de.projekt_kanban.agent",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "protocol": 1,
         })
 
@@ -182,6 +193,15 @@ class HostTests(unittest.TestCase):
             request_state = json.loads((self.base / "state" / "projekt-kanban-agent" / "jobs" / run_id / "request.json").read_text())
             self.assertNotIn("prompt", request_state)
             self.assertNotIn("description", request_state["task"])
+        finally:
+            client.close()
+
+    def test_base64_transport_for_windows_relay(self) -> None:
+        client = NativeClient(self.environment, base64_transport=True)
+        try:
+            response = client.request("hello")
+            self.assertTrue(response["ok"])
+            self.assertEqual(response["data"]["version"], "0.1.3")
         finally:
             client.close()
 

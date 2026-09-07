@@ -13,23 +13,28 @@ $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PackageDirectory = Split-Path -Parent $ScriptDirectory
 $SourceHost = Join-Path $PackageDirectory 'native-host\kanban_agent_host.py'
 $SourceSchema = Join-Path $PackageDirectory 'native-host\feedback-schema.json'
+$SourceRelay = Join-Path $ScriptDirectory 'projekt-kanban-agent-wsl.exe'
 $WslCommand = Get-Command 'wsl.exe' -ErrorAction Stop
 
 if (-not (Test-Path -LiteralPath $SourceHost -PathType Leaf) -or
-    -not (Test-Path -LiteralPath $SourceSchema -PathType Leaf)) {
-    throw 'The native-host files are missing. Extract the complete Windows-WSL release ZIP first.'
+    -not (Test-Path -LiteralPath $SourceSchema -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $SourceRelay -PathType Leaf)) {
+    throw 'The native-host or Windows relay files are missing. Extract the complete Windows-WSL release ZIP first.'
 }
 
 $InstallDirectory = Join-Path $env:LOCALAPPDATA 'ProjektKanbanAgent'
 $InstalledHost = Join-Path $InstallDirectory 'kanban_agent_host.py'
 $InstalledSchema = Join-Path $InstallDirectory 'feedback-schema.json'
-$BatchPath = Join-Path $InstallDirectory 'projekt-kanban-agent-wsl.bat'
+$RelayPath = Join-Path $InstallDirectory 'projekt-kanban-agent-wsl.exe'
+$RelayConfigPath = Join-Path $InstallDirectory 'relay-config.txt'
+$LegacyBatchPath = Join-Path $InstallDirectory 'projekt-kanban-agent-wsl.bat'
 $ManifestPath = Join-Path $InstallDirectory "$HostName.json"
 $RegistryPath = "HKCU:\Software\Mozilla\NativeMessagingHosts\$HostName"
 
 New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
 Copy-Item -LiteralPath $SourceHost -Destination $InstalledHost -Force
 Copy-Item -LiteralPath $SourceSchema -Destination $InstalledSchema -Force
+Copy-Item -LiteralPath $SourceRelay -Destination $RelayPath -Force
 
 $DistributionArguments = @()
 if ($Distribution) {
@@ -55,17 +60,18 @@ if ($SelfTest.name -ne $HostName -or $SelfTest.protocol -ne 1) {
     throw 'The WSL native host returned an unexpected self-test response.'
 }
 
-$DistributionPart = ''
-if ($Distribution) {
-    $DistributionPart = "--distribution `"$Distribution`" "
+$RelayConfig = "$($WslCommand.Path)`r`n$Distribution`r`n$WslHostPath`r`n"
+[System.IO.File]::WriteAllText($RelayConfigPath, $RelayConfig, [System.Text.UTF8Encoding]::new($false))
+
+& $RelayPath --self-test
+if ($LASTEXITCODE -ne 0) {
+    throw "The Windows-to-WSL relay self-test failed. See $InstallDirectory\relay.log"
 }
-$BatchContent = "@echo off`r`n`"$($WslCommand.Path)`" $DistributionPart--exec python3 `"$WslHostPath`"`r`n"
-[System.IO.File]::WriteAllText($BatchPath, $BatchContent, [System.Text.UTF8Encoding]::new($false))
 
 $Manifest = [ordered]@{
     name = $HostName
     description = 'Connect Windows Firefox to user-owned coding agents in WSL'
-    path = $BatchPath
+    path = $RelayPath
     type = 'stdio'
     allowed_extensions = @($ExtensionId)
 }
@@ -75,7 +81,11 @@ $ManifestJson = $Manifest | ConvertTo-Json -Depth 4
 New-Item -Path $RegistryPath -Force | Out-Null
 Set-Item -Path $RegistryPath -Value $ManifestPath
 
-Write-Host "Windows-WSL Native Host installed: $BatchPath"
+if (Test-Path -LiteralPath $LegacyBatchPath -PathType Leaf) {
+    Remove-Item -LiteralPath $LegacyBatchPath -Force
+}
+
+Write-Host "Windows-WSL Native Host installed: $RelayPath"
 Write-Host "Firefox manifest registered: $ManifestPath"
 Write-Host "WSL host verified: $WslHostPath (version $($SelfTest.version))"
 Write-Host 'Restart Firefox, then open the add-on settings.'

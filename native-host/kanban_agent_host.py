@@ -8,6 +8,7 @@ paths, SSH destinations and repository paths come only from the user-owned confi
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024
@@ -518,7 +519,8 @@ def run_job(job_directory: Path) -> int:
 
 
 class NativeHost:
-    def __init__(self) -> None:
+    def __init__(self, wire_format: str = "native") -> None:
+        self.wire_format = wire_format
         self.config_directory = config_root() / "projekt-kanban-agent"
         self.config_file = self.config_directory / "config.json"
         self.jobs_directory = state_root() / "projekt-kanban-agent" / "jobs"
@@ -541,9 +543,36 @@ class NativeHost:
                 "data": {"message": "An oversized agent event was omitted."},
             }, separators=(",", ":")).encode("utf-8")
         with self.write_lock:
-            sys.stdout.buffer.write(struct.pack("<I", len(encoded)))
-            sys.stdout.buffer.write(encoded)
+            if self.wire_format == "base64-lines":
+                sys.stdout.buffer.write(base64.b64encode(encoded) + b"\n")
+            else:
+                sys.stdout.buffer.write(struct.pack("<I", len(encoded)))
+                sys.stdout.buffer.write(encoded)
             sys.stdout.buffer.flush()
+
+    def read_message(self) -> bytes | None:
+        if self.wire_format == "base64-lines":
+            line = sys.stdin.buffer.readline(((MAX_NATIVE_MESSAGE + 2) // 3) * 4 + 2)
+            if not line:
+                return None
+            if not line.endswith(b"\n"):
+                return None
+            try:
+                body = base64.b64decode(line.strip(), validate=True)
+            except (ValueError, binascii.Error):
+                return None
+            if len(body) < 2 or len(body) > MAX_NATIVE_MESSAGE:
+                return None
+            return body
+
+        length_bytes = sys.stdin.buffer.read(4)
+        if not length_bytes or len(length_bytes) != 4:
+            return None
+        length = struct.unpack("<I", length_bytes)[0]
+        if length < 2 or length > MAX_NATIVE_MESSAGE:
+            return None
+        body = sys.stdin.buffer.read(length)
+        return body if len(body) == length else None
 
     def response(self, request_id: str, data: dict[str, Any] | None = None, error: ProtocolError | None = None) -> None:
         if error:
@@ -736,16 +765,8 @@ class NativeHost:
         monitor_thread = threading.Thread(target=self.monitor, name="agent-event-monitor", daemon=True)
         monitor_thread.start()
         while True:
-            length_bytes = sys.stdin.buffer.read(4)
-            if not length_bytes:
-                break
-            if len(length_bytes) != 4:
-                break
-            length = struct.unpack("<I", length_bytes)[0]
-            if length < 2 or length > MAX_NATIVE_MESSAGE:
-                break
-            body = sys.stdin.buffer.read(length)
-            if len(body) != length:
+            body = self.read_message()
+            if body is None:
                 break
             request_id = "unknown"
             try:
@@ -773,7 +794,8 @@ def main() -> int:
         return 0
     if len(sys.argv) == 3 and sys.argv[1] == "--run-job":
         return run_job(Path(sys.argv[2]).resolve())
-    NativeHost().serve()
+    wire_format = "base64-lines" if len(sys.argv) == 2 and sys.argv[1] == "--base64-native-bridge" else "native"
+    NativeHost(wire_format).serve()
     return 0
 
 

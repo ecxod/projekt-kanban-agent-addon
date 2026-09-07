@@ -2,7 +2,7 @@
 
 ## Windows Firefox with an agent in WSL
 
-Extract `projekt-kanban-agent-0.1.2-windows-wsl.zip`, open PowerShell in the
+Extract `projekt-kanban-agent-0.1.3-windows-wsl.zip`, open PowerShell in the
 extracted directory, and run:
 
 ```powershell
@@ -16,8 +16,8 @@ distribution:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1 -Distribution Ubuntu
 ```
 
-The installer copies the native host under `%LOCALAPPDATA%`, verifies it through
-`wsl.exe`, and registers it for the current Windows user under
+The installer copies the native host and Windows relay under `%LOCALAPPDATA%`,
+verifies the complete relay through `wsl.exe`, and registers it for the current Windows user under
 `HKCU\Software\Mozilla\NativeMessagingHosts`.
 
 Restart Firefox after installation. In the add-on settings use:
@@ -27,7 +27,7 @@ Restart Firefox after installation. In the add-on settings use:
 - **Agentenprogramm:** the WSL path to Codex, for example
   `/mnt/c/Users/Christian/.codex/bin/wsl/codex`
 - **Freigegebene Projekte:** one WSL repository path per line, for example
-  `projekt-kanban=/var/www/kanban-localstorage`
+  `projekt-kanban=/mnt/c/Users/Christian/Projects/projekt-kanban`
 
 The repository path must identify a directory containing `.git` inside WSL.
 
@@ -51,7 +51,7 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.2-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.3-signed.xpi` from the extracted bundle.
 5. Confirm with **Add**.
 
 ## Configure an agent
@@ -87,3 +87,6 @@ On Linux:
 
 This removes the installed program and Firefox Native Messaging manifest. Local
 agent settings and run history are intentionally retained.
+
+If the Windows relay fails, inspect
+`%LOCALAPPDATA%\ProjektKanbanAgent\relay.log` before reinstalling.

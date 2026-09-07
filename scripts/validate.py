@@ -50,6 +50,7 @@ for relative in [
     "native-host/feedback-schema.json",
     "native-host-windows-wsl/install.ps1",
     "native-host-windows-wsl/uninstall.ps1",
+    "native-host-windows-wsl/wsl-relay.c",
 ]:
     if not (ROOT / relative).is_file():
         fail(f"missing release file: {relative}")
@@ -65,6 +66,8 @@ for required in [
     "--exec python3",
     "--self-test",
     "wslpath -a -u",
+    "relay-config.txt",
+    "projekt-kanban-agent-wsl.exe",
 ]:
     if required not in windows_installer:
         fail(f"Windows-WSL installer is missing required behavior: {required}")

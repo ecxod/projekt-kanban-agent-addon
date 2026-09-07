@@ -87,7 +87,10 @@ function connectNative() {
     const detail = browser.runtime.lastError && browser.runtime.lastError.message
       ? browser.runtime.lastError.message
       : "Native host disconnected.";
-    disconnectNative(new Error(detail));
+    const diagnostic = /disconnected/i.test(detail)
+      ? `${detail} Windows-WSL-Protokoll: %LOCALAPPDATA%\\ProjektKanbanAgent\\relay.log`
+      : detail;
+    disconnectNative(new Error(diagnostic));
   });
   return nativePort;
 }

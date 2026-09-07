@@ -61,16 +61,17 @@ Download and extract the Windows-WSL release ZIP, then run from PowerShell:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1
 ```
 
-The bridge is registered only for the current Windows user and launches the
-Python native host inside the default WSL distribution. No Python installation
-on Windows and no Windows service are required. An optional `-Distribution`
-parameter selects a non-default WSL distribution.
+The bridge is registered only for the current Windows user. A native Windows
+relay handles Firefox's binary framing and exchanges base64-encoded JSON lines
+with the Python host inside WSL. No Python installation on Windows and no
+Windows service are required. An optional `-Distribution` parameter selects a
+non-default WSL distribution.
 
 In the add-on settings choose the local connection and enter WSL paths. Example:
 
 ```text
 Agentenprogramm: /mnt/c/Users/Christian/.codex/bin/wsl/codex
-Freigegebene Projekte: projekt-kanban=/var/www/kanban-localstorage
+Freigegebene Projekte: projekt-kanban=/mnt/c/Users/Christian/Projects/projekt-kanban
 ```
 
 The build creates an unsigned XPI. Normal Firefox release installations require

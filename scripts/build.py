@@ -16,6 +16,7 @@ VERSION = MANIFEST["version"]
 XPI = DIST / f"projekt-kanban-agent-{VERSION}.xpi"
 SOURCE = DIST / f"projekt-kanban-agent-{VERSION}-source.zip"
 CHECKSUMS = DIST / "SHA256SUMS"
+WINDOWS_RELAY = DIST / "projekt-kanban-agent-wsl.exe"
 FIXED_TIME = (2026, 9, 7, 0, 0, 0)
 
 
@@ -28,6 +29,13 @@ def add_file(archive: zipfile.ZipFile, source: Path, name: str) -> None:
 
 subprocess.run(["python3", str(ROOT / "scripts" / "validate.py")], check=True)
 DIST.mkdir(exist_ok=True)
+subprocess.run([
+    "x86_64-w64-mingw32-gcc",
+    "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-municode", "-static", "-s",
+    "-Wl,--no-insert-timestamp",
+    "-o", str(WINDOWS_RELAY),
+    str(ROOT / "native-host-windows-wsl" / "wsl-relay.c"),
+], check=True)
 
 with zipfile.ZipFile(XPI, "w") as archive:
     for source in sorted(path for path in ADDON.rglob("*") if path.is_file()):

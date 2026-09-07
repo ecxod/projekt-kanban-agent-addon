@@ -16,6 +16,9 @@ foreach ($Name in @(
     'kanban_agent_host.py',
     'feedback-schema.json',
     'projekt-kanban-agent-wsl.bat',
+    'projekt-kanban-agent-wsl.exe',
+    'relay-config.txt',
+    'relay.log',
     "$HostName.json"
 )) {
     $Path = Join-Path $InstallDirectory $Name

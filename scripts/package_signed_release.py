@@ -81,6 +81,7 @@ with BUNDLE.open("wb") as raw_handle:
 windows_files = list(files)
 for source in sorted(path for path in (ROOT / "native-host-windows-wsl").rglob("*") if path.is_file()):
     windows_files.append((source, source.relative_to(ROOT).as_posix(), 0o644))
+windows_files.append((DIST / "projekt-kanban-agent-wsl.exe", "native-host-windows-wsl/projekt-kanban-agent-wsl.exe", 0o755))
 with zipfile.ZipFile(WINDOWS_BUNDLE, "w") as archive:
     for source, relative, mode in windows_files:
         zip_file(archive, source, relative, mode)
