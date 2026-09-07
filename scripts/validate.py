@@ -16,8 +16,11 @@ def fail(message: str) -> None:
 
 
 manifest = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
+package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
 if manifest.get("manifest_version") != 3:
     fail("manifest_version must be 3")
+if package.get("version") != manifest.get("version"):
+    fail("package and extension versions must match")
 if manifest.get("permissions") != ["nativeMessaging"]:
     fail("extension must request only nativeMessaging API permission")
 if manifest.get("host_permissions") != ["https://projekt-kanban.de/*"]:
@@ -30,7 +33,7 @@ if gecko.get("data_collection_permissions", {}).get("required") != ["websiteCont
 if manifest.get("incognito") != "not_allowed":
     fail("private browsing must remain disabled")
 
-referenced = [
+addon_files = [
     "background.js",
     "content-script.js",
     "options/options.html",
@@ -38,9 +41,33 @@ referenced = [
     "icons/agent.svg",
     "icons/agent-inactive.svg",
 ]
-for relative in referenced:
+for relative in addon_files:
     if not (ADDON / relative).is_file():
         fail(f"missing extension file: {relative}")
+
+for relative in [
+    "native-host/kanban_agent_host.py",
+    "native-host/feedback-schema.json",
+    "native-host-windows-wsl/install.ps1",
+    "native-host-windows-wsl/uninstall.ps1",
+]:
+    if not (ROOT / relative).is_file():
+        fail(f"missing release file: {relative}")
+
+host_source = (ROOT / "native-host/kanban_agent_host.py").read_text(encoding="utf-8")
+if f'VERSION = "{manifest["version"]}"' not in host_source:
+    fail("native host and extension versions must match")
+
+windows_installer = (ROOT / "native-host-windows-wsl/install.ps1").read_text(encoding="utf-8")
+for required in [
+    "HKCU:\\Software\\Mozilla\\NativeMessagingHosts\\$HostName",
+    "allowed_extensions",
+    "--exec python3",
+    "--self-test",
+    "wslpath -a -u",
+]:
+    if required not in windows_installer:
+        fail(f"Windows-WSL installer is missing required behavior: {required}")
 
 for script in sorted(ADDON.rglob("*.js")):
     completed = subprocess.run(["node", "--check", str(script)], capture_output=True, text=True)

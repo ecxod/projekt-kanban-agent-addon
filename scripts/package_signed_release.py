@@ -18,8 +18,10 @@ UNSIGNED_XPI = DIST / f"projekt-kanban-agent-{VERSION}.xpi"
 SIGNED_XPI = DIST / f"projekt-kanban-agent-{VERSION}-signed.xpi"
 SOURCE = DIST / f"projekt-kanban-agent-{VERSION}-source.zip"
 BUNDLE = DIST / f"projekt-kanban-agent-{VERSION}-linux.tar.gz"
+WINDOWS_BUNDLE = DIST / f"projekt-kanban-agent-{VERSION}-windows-wsl.zip"
 CHECKSUMS = DIST / "SHA256SUMS"
 FIXED_EPOCH = 1788739200
+FIXED_TIME = (2026, 9, 7, 0, 0, 0)
 SIGNATURE_FILES = {
     "META-INF/cose.manifest", "META-INF/cose.sig", "META-INF/manifest.mf",
     "META-INF/mozilla.sf", "META-INF/mozilla.rsa"
@@ -53,6 +55,13 @@ def bundle_file(archive: tarfile.TarFile, source: Path, relative: str, mode: int
     archive.addfile(info, io.BytesIO(data))
 
 
+def zip_file(archive: zipfile.ZipFile, source: Path, relative: str, mode: int) -> None:
+    info = zipfile.ZipInfo(f"projekt-kanban-agent-{VERSION}/{relative}", FIXED_TIME)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = ((0o100000 | mode) & 0xFFFF) << 16
+    archive.writestr(info, source.read_bytes())
+
+
 verify_signed_xpi()
 files = [
     (SIGNED_XPI, SIGNED_XPI.name, 0o644),
@@ -69,11 +78,19 @@ with BUNDLE.open("wb") as raw_handle:
             for source, relative, mode in files:
                 bundle_file(archive, source, relative, mode)
 
-artifacts = [SIGNED_XPI, SOURCE, BUNDLE]
+windows_files = list(files)
+for source in sorted(path for path in (ROOT / "native-host-windows-wsl").rglob("*") if path.is_file()):
+    windows_files.append((source, source.relative_to(ROOT).as_posix(), 0o644))
+with zipfile.ZipFile(WINDOWS_BUNDLE, "w") as archive:
+    for source, relative, mode in windows_files:
+        zip_file(archive, source, relative, mode)
+
+artifacts = [SIGNED_XPI, SOURCE, BUNDLE, WINDOWS_BUNDLE]
 CHECKSUMS.write_text("\n".join(
     f"{hashlib.sha256(artifact.read_bytes()).hexdigest()}  {artifact.name}"
     for artifact in artifacts
 ) + "\n", encoding="ascii")
 
 print(BUNDLE.relative_to(ROOT))
+print(WINDOWS_BUNDLE.relative_to(ROOT))
 print(CHECKSUMS.relative_to(ROOT))

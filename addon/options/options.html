@@ -66,7 +66,7 @@
         </label>
         <label>Verbindung
           <select name="transport">
-            <option value="local">Lokal</option>
+            <option value="local">Lokal / über Windows-WSL-Bridge</option>
             <option value="ssh">Entfernt über SSH</option>
           </select>
         </label>
@@ -95,6 +95,7 @@
         <label class="projects-field">Freigegebene Projekte
           <textarea name="projects" rows="4" required placeholder="projekt-kanban=/home/user/src/projekt-kanban&#10;website=/home/user/src/website"></textarea>
           <small>Eine Zuordnung pro Zeile: <code>Projektkennung=/absoluter/repository/pfad</code></small>
+          <small>Bei der Windows-WSL-Bridge müssen Agentenprogramm und Repository WSL-Pfade sein, zum Beispiel <code>/mnt/c/Users/...</code>.</small>
         </label>
       </div>
       <p class="agent-status status" role="status" aria-live="polite"></p>

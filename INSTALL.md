@@ -1,6 +1,39 @@
-# Installation on a Linux workstation
+# Installation
 
-## 1. Install the local Native Messaging host
+## Windows Firefox with an agent in WSL
+
+Extract `projekt-kanban-agent-0.1.2-windows-wsl.zip`, open PowerShell in the
+extracted directory, and run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1
+```
+
+The installer uses the default WSL distribution. To select another installed
+distribution:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1 -Distribution Ubuntu
+```
+
+The installer copies the native host under `%LOCALAPPDATA%`, verifies it through
+`wsl.exe`, and registers it for the current Windows user under
+`HKCU\Software\Mozilla\NativeMessagingHosts`.
+
+Restart Firefox after installation. In the add-on settings use:
+
+- **Verbindung:** `Lokal / über Windows-WSL-Bridge`
+- **Adapter:** `Codex CLI`
+- **Agentenprogramm:** the WSL path to Codex, for example
+  `/mnt/c/Users/Christian/.codex/bin/wsl/codex`
+- **Freigegebene Projekte:** one WSL repository path per line, for example
+  `projekt-kanban=/var/www/kanban-localstorage`
+
+The repository path must identify a directory containing `.git` inside WSL.
+
+## Linux Firefox
+
+### 1. Install the local Native Messaging host
 
 Extract the release bundle and run as the desktop user who runs Firefox:
 
@@ -11,17 +44,17 @@ Extract the release bundle and run as the desktop user who runs Firefox:
 No daemon or systemd service is installed. Firefox starts the Native Messaging
 host on demand. The host is installed only for the current user.
 
-## 2. Install the Firefox extension
+## Install the Firefox extension
 
 The release bundle contains the XPI signed by Mozilla for self-distribution:
 
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.1-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.2-signed.xpi` from the extracted bundle.
 5. Confirm with **Add**.
 
-## 3. Configure an agent
+## Configure an agent
 
 1. Open the add-on settings.
 2. Add a local or SSH agent.
@@ -39,6 +72,14 @@ release files. The signed XPI additionally contains Mozilla's `META-INF`
 signature files.
 
 ## Removal
+
+On Windows with WSL:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\uninstall.ps1
+```
+
+On Linux:
 
 ```sh
 ./native-host/uninstall-linux.sh

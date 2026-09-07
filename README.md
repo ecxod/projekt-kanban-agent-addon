@@ -8,7 +8,8 @@ agent traffic and never receives agent credentials.
 The repository contains two parts:
 
 - a Firefox Manifest V3 WebExtension in `addon/`;
-- a user-installed Linux Native Messaging host in `native-host/`.
+- a Native Messaging host in `native-host/`;
+- a per-user Windows-to-WSL installer in `native-host-windows-wsl/`.
 
 The native host supports:
 
@@ -51,6 +52,26 @@ of their chosen agent.
 5. Open the extension settings and configure one or more agents and project
    mappings.
 6. Use **Verbindung testen** before submitting a task.
+
+## Windows Firefox with Codex in WSL
+
+Download and extract the Windows-WSL release ZIP, then run from PowerShell:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-wsl\install.ps1
+```
+
+The bridge is registered only for the current Windows user and launches the
+Python native host inside the default WSL distribution. No Python installation
+on Windows and no Windows service are required. An optional `-Distribution`
+parameter selects a non-default WSL distribution.
+
+In the add-on settings choose the local connection and enter WSL paths. Example:
+
+```text
+Agentenprogramm: /mnt/c/Users/Christian/.codex/bin/wsl/codex
+Freigegebene Projekte: projekt-kanban=/var/www/kanban-localstorage
+```
 
 The build creates an unsigned XPI. Normal Firefox release installations require
 Mozilla signing; the unsigned package is intended for temporary development

@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024
@@ -768,6 +768,9 @@ class NativeHost:
 
 
 def main() -> int:
+    if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
+        print(json.dumps({"name": HOST_NAME, "version": VERSION, "protocol": 1}))
+        return 0
     if len(sys.argv) == 3 and sys.argv[1] == "--run-job":
         return run_job(Path(sys.argv[2]).resolve())
     NativeHost().serve()

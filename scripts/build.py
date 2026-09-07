@@ -36,7 +36,7 @@ with zipfile.ZipFile(XPI, "w") as archive:
             continue
         add_file(archive, source, relative.as_posix())
 
-source_roots = ["addon", "docs", "native-host", "scripts", "tests"]
+source_roots = ["addon", "docs", "native-host", "native-host-windows-wsl", "scripts", "tests"]
 source_files = [ROOT / name for name in ["README.md", "INSTALL.md", "PRIVACY.md", "SECURITY.md", "LICENSE", "package.json"]]
 for root_name in source_roots:
     source_files.extend(

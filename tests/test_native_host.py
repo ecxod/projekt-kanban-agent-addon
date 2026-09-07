@@ -101,6 +101,20 @@ class HostTests(unittest.TestCase):
             }],
         }
 
+    def test_self_test_reports_native_host_identity(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(HOST_PATH), "--self-test"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        response = json.loads(completed.stdout)
+        self.assertEqual(response, {
+            "name": "de.projekt_kanban.agent",
+            "version": "0.1.2",
+            "protocol": 1,
+        })
+
     def test_rejects_secret_and_dangerous_configuration_fields(self) -> None:
         config = self.config()
         config["agents"][0]["apiKey"] = "secret"
