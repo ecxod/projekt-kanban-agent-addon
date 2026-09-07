@@ -13,14 +13,13 @@ host on demand. The host is installed only for the current user.
 
 ## 2. Install the Firefox extension
 
-The XPI in the GitHub release is unsigned. For a temporary test installation:
+The release bundle contains the XPI signed by Mozilla for self-distribution:
 
-1. Open `about:debugging#/runtime/this-firefox` in Firefox.
-2. Select **Load Temporary Add-on**.
-3. Select `projekt-kanban-agent-0.1.0.xpi` from the extracted bundle.
-
-Firefox removes temporary add-ons when the browser exits. A normal, persistent
-installation in Firefox Release or Beta requires an XPI signed by Mozilla.
+1. Open **Add-ons and themes** in Firefox.
+2. Open the cog menu.
+3. Select **Install Add-on From File**.
+4. Select `projekt-kanban-agent-0.1.0-signed.xpi` from the extracted bundle.
+5. Confirm with **Add**.
 
 ## 3. Configure an agent
 
@@ -32,6 +31,12 @@ installation in Firefox Release or Beta requires an XPI signed by Mozilla.
 
 Provider credentials remain in the provider's own CLI or operating-system
 credential store. Do not put API keys or passwords into the add-on fields.
+
+## Verify the download
+
+Run `sha256sum -c SHA256SUMS` in the directory containing the downloaded
+release files. The signed XPI additionally contains Mozilla's `META-INF`
+signature files.
 
 ## Removal
 

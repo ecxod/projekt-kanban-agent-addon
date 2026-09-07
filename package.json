@@ -6,7 +6,8 @@
   "scripts": {
     "validate": "python3 scripts/validate.py",
     "test": "python3 scripts/validate.py && python3 -m unittest discover -s tests -v && node tests/test_background.js",
-    "build": "python3 scripts/build.py"
+    "build": "python3 scripts/build.py",
+    "release:package": "python3 scripts/package_signed_release.py"
   },
   "license": "MIT"
 }

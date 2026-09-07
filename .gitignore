@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 web-ext-artifacts/
+addon/.amo-upload-uuid
+addon/.web-extension-id
+dist/amo-signed/
