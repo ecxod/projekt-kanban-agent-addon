@@ -22,6 +22,12 @@ host. A provider invoked by the user may process data according to that
 provider's own terms and privacy policy. Users are responsible for choosing and
 configuring their agent.
 
+Firefox desktop 140 and later also presents the declared `websiteContent`
+transmission during installation. Firefox 128 through 139 does not have that
+built-in consent screen; on those versions, the add-on-controlled confirmation
+dialog appears before every task transmission. Cancelling it prevents the task
+content from leaving the page.
+
 Removing the Native Messaging host does not automatically remove local settings
 or run history. They can be deleted manually from the XDG configuration and
 state directories.

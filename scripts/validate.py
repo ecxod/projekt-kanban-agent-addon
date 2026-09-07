@@ -23,6 +23,8 @@ if manifest.get("permissions") != ["nativeMessaging"]:
 if manifest.get("host_permissions") != ["https://projekt-kanban.de/*"]:
     fail("host permission must be restricted to projekt-kanban.de")
 gecko = manifest.get("browser_specific_settings", {}).get("gecko", {})
+if gecko.get("strict_min_version") != "128.0":
+    fail("desktop Firefox compatibility must start at ESR 128")
 if gecko.get("data_collection_permissions", {}).get("required") != ["websiteContent"]:
     fail("websiteContent data declaration is required")
 if manifest.get("incognito") != "not_allowed":

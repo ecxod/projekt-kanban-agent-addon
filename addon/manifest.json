@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Projekt Kanban Agent Connector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sends task content selected by the user on projekt-kanban.de to the user's own configured coding agent and returns structured run feedback.",
   "icons": {
     "48": "icons/agent.svg",
@@ -36,7 +36,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "projekt-kanban-agent@ecxod.de",
-      "strict_min_version": "142.0",
+      "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": ["websiteContent"]
       }

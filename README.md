@@ -72,6 +72,11 @@ installer, example configuration, license, and [`INSTALL.md`](INSTALL.md). The
 unsigned XPI produced by the normal build is for development; the signed release
 artifact can be installed persistently from Firefox's Add-ons Manager.
 
+Firefox desktop 128 and later is supported. Firefox 140 and later displays its
+built-in website-content transmission disclosure during installation. On Firefox
+128 through 139, the add-on's own confirmation dialog provides the disclosure
+and blocks every task transmission until the user explicitly approves.
+
 ## Agent configuration
 
 Each agent has:

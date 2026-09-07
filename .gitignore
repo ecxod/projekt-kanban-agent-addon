@@ -4,4 +4,4 @@ __pycache__/
 web-ext-artifacts/
 addon/.amo-upload-uuid
 addon/.web-extension-id
-dist/amo-signed/
+dist/amo-signed*/
