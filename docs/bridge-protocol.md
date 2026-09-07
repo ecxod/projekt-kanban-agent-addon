@@ -2,7 +2,8 @@
 
 The `jsonl-bridge` adapter allows any user-owned agent to work with the Firefox
 connector. The native host starts the configured executable without a shell,
-sets its working directory to the configured repository, writes one JSON object
+sets its working directory to the configured workspace (or the agent user's home
+for unrestricted access), writes one JSON object
 to standard input, and reads JSON Lines from standard output.
 
 The bridge must never read credentials from the input object. Provider login and

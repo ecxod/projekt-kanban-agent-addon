@@ -21,11 +21,15 @@ The native host supports:
 ## Security model
 
 - No OpenAI, Gemini, SSH, or other provider password is stored in the add-on.
-- Agent executables, SSH targets, and repository paths are stored in the
+- Agent executables, SSH targets, and workspace paths are stored in the
   user-owned native-host configuration with mode `0600`.
-- The website can send only a configured `agentId` and `projectId`; it cannot
+- The website can send only a configured `agentId` and a logical `projectId`; it cannot
   choose an executable, SSH host, CLI arguments, or filesystem path.
-- Only `read-only` and `workspace-write` sandboxes are accepted.
+- `read-only` provides a dry-run/analysis mode, while `workspace-write` limits
+  writes to the configured workspace.
+- `danger-full-access` is available only as an explicit user configuration. It
+  starts in the agent user's home directory and requires an additional warning
+  checkbox before every run.
 - A run requires a visible add-on-controlled confirmation.
 - The content script runs only on `https://projekt-kanban.de/*`.
 - The toolbar icon is gray by default and turns blue only while a verified
@@ -34,7 +38,7 @@ The native host supports:
   code execution in the extension.
 
 The Native Messaging host still starts powerful user-selected tools. Users must
-review task content, restrict repository mappings, and apply the security policy
+review task content, choose an appropriate workspace or sandbox, and apply the security policy
 of their chosen agent.
 
 ## Install for development on Linux
@@ -49,9 +53,12 @@ of their chosen agent.
 
 3. Open `about:debugging#/runtime/this-firefox` in Firefox.
 4. Choose **Load Temporary Add-on** and select `addon/manifest.json`.
-5. Open the extension settings and configure one or more agents and project
-   mappings.
+5. Open the extension settings and configure one or more agents and workspaces.
 6. Use **Verbindung testen** before submitting a task.
+
+Configured agents can be disabled without deleting their executable, SSH target,
+or workspace. Disabled agents remain editable in settings but are not
+exposed to the Kanban page and cannot start runs until re-enabled.
 
 ## Windows Firefox with Codex in WSL
 
@@ -71,7 +78,7 @@ In the add-on settings choose the local connection and enter WSL paths. Example:
 
 ```text
 Agentenprogramm: /mnt/c/Users/Christian/.codex/bin/wsl/codex
-Freigegebene Projekte: projekt-kanban=/mnt/c/Users/Christian/Projects/projekt-kanban
+Arbeitsbereich: /mnt/c/Users/Christian/workspace
 ```
 
 The build creates an unsigned XPI. Normal Firefox release installations require
@@ -108,7 +115,8 @@ Each agent has:
 - a transport: `local` or `ssh`;
 - a fixed executable and optional fixed arguments;
 - a sandbox;
-- one or more logical project IDs mapped to repositories.
+- one workspace containing any number of repositories; or
+- unrestricted access starting in the agent user's home directory.
 
 Passwords and API keys are intentionally not accepted as configuration fields.
 Local provider authentication remains with the provider CLI. Remote execution

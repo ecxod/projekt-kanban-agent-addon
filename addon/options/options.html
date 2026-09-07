@@ -29,14 +29,14 @@
         </div>
         <button type="button" id="reload">Neu laden</button>
       </div>
-      <p>Vor der ersten Verwendung muss die lokale Bridge mit <code>native-host/install-linux.sh</code> installiert werden.</p>
+      <p>Vor der ersten Verwendung muss die passende lokale Bridge aus dem Release-Paket installiert werden: Windows-WSL oder Linux.</p>
     </section>
 
     <section aria-labelledby="agents-title">
       <div class="section-heading">
         <div>
           <h2 id="agents-title">Agenten</h2>
-          <p>Jeder Agent kann mehrere Projektkennungen einem freigegebenen Repository-Pfad zuordnen.</p>
+          <p>Jeder Agent arbeitet innerhalb eines frei wählbaren Arbeitsbereichs mit beliebig vielen Projekten.</p>
         </div>
         <button type="button" id="addAgent">Agent hinzufügen</button>
       </div>
@@ -51,9 +51,13 @@
   <template id="agentTemplate">
     <article class="agent-card">
       <div class="agent-card-header">
-        <h3>Agent</h3>
+        <div class="agent-title">
+          <h3>Agent</h3>
+          <span class="agent-state-badge">Aktiv</span>
+        </div>
         <div class="card-actions">
           <button type="button" class="test-agent">Verbindung testen</button>
+          <button type="button" class="toggle-agent">Deaktivieren</button>
           <button type="button" class="remove-agent danger">Entfernen</button>
         </div>
       </div>
@@ -88,14 +92,17 @@
         </label>
         <label>Sandbox
           <select name="sandbox">
-            <option value="read-only">Nur lesen</option>
-            <option value="workspace-write">Workspace schreiben</option>
+            <option value="read-only">Nur lesen (Dry-Run)</option>
+            <option value="workspace-write">Arbeitsbereich schreiben</option>
+            <option value="danger-full-access">Uneingeschränkter Zugriff</option>
           </select>
+          <small class="sandbox-help"></small>
+          <small class="sandbox-warning" hidden><strong>Achtung:</strong> Der Agent kann bei jedem Lauf auch außerhalb seines Startverzeichnisses Dateien lesen und verändern sowie dort erreichbare Zugangsdaten verwenden. Jeder Start muss nochmals ausdrücklich bestätigt werden.</small>
         </label>
-        <label class="projects-field">Freigegebene Projekte
-          <textarea name="projects" rows="4" required placeholder="projekt-kanban=/home/user/src/projekt-kanban&#10;website=/home/user/src/website"></textarea>
-          <small>Eine Zuordnung pro Zeile: <code>Projektkennung=/absoluter/repository/pfad</code></small>
-          <small>Bei der Windows-WSL-Bridge müssen Agentenprogramm und Repository WSL-Pfade sein, zum Beispiel <code>/mnt/c/Users/...</code>.</small>
+        <label class="workspace-field">Arbeitsbereich
+          <input name="workspace" required maxlength="4096" placeholder="/mnt/c/Users/Christian/workspace">
+          <small>Der Agent darf alle Projekte unterhalb dieses Verzeichnisses verwenden. Eine einzelne Projektfreigabe ist nicht erforderlich.</small>
+          <small>Bei der Windows-WSL-Bridge muss dies ein WSL-Pfad sein, zum Beispiel <code>/mnt/c/Users/Christian/workspace</code>.</small>
         </label>
       </div>
       <p class="agent-status status" role="status" aria-live="polite"></p>

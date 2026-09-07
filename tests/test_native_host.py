@@ -101,6 +101,7 @@ class HostTests(unittest.TestCase):
             "version": 1,
             "agents": [{
                 "id": "fake-agent",
+                "enabled": True,
                 "label": "Fake Agent",
                 "adapter": "jsonl-bridge",
                 "transport": "local",
@@ -108,7 +109,7 @@ class HostTests(unittest.TestCase):
                 "arguments": [],
                 "sshHost": "",
                 "sandbox": "workspace-write",
-                "projects": {"test-project": str(self.project)},
+                "workspace": str(self.base),
             }],
         }
 
@@ -122,22 +123,22 @@ class HostTests(unittest.TestCase):
         response = json.loads(completed.stdout)
         self.assertEqual(response, {
             "name": "de.projekt_kanban.agent",
-            "version": "0.1.3",
+            "version": "0.1.5",
             "protocol": 1,
         })
 
-    def test_rejects_secret_and_dangerous_configuration_fields(self) -> None:
+    def test_rejects_secret_and_invalid_configuration_fields(self) -> None:
         config = self.config()
         config["agents"][0]["apiKey"] = "secret"
         with self.assertRaises(host_module.ProtocolError):
             host_module.validate_config(config)
         config = self.config()
-        config["agents"][0]["sandbox"] = "danger-full-access"
+        config["agents"][0]["transport"] = "ssh"
+        config["agents"][0]["sshHost"] = "-oProxyCommand=bad"
         with self.assertRaises(host_module.ProtocolError):
             host_module.validate_config(config)
         config = self.config()
-        config["agents"][0]["transport"] = "ssh"
-        config["agents"][0]["sshHost"] = "-oProxyCommand=bad"
+        config["agents"][0]["enabled"] = "false"
         with self.assertRaises(host_module.ProtocolError):
             host_module.validate_config(config)
 
@@ -148,10 +149,38 @@ class HostTests(unittest.TestCase):
             "description": "Test description",
             "notes": "Test notes",
             "subtasks": [{"title": "Child"}],
-        }})
+        }}, "workspace-write")
         self.assertIn("configured sandbox", prompt)
         self.assertIn("Test description", prompt)
         self.assertEqual(len(digest), 64)
+
+    def test_unrestricted_sandbox_is_preserved_and_warned_in_prompt(self) -> None:
+        config = self.config()
+        config["agents"][0]["sandbox"] = "danger-full-access"
+        config["agents"][0].pop("workspace")
+        normalized = host_module.validate_config(config)
+        self.assertEqual(normalized["agents"][0]["sandbox"], "danger-full-access")
+        self.assertEqual(normalized["agents"][0]["workspace"], "")
+        self.assertEqual(
+            host_module.public_agent(normalized["agents"][0])["startDirectory"],
+            str(Path.home().resolve(strict=False)),
+        )
+        prompt, _digest = host_module.build_prompt({"task": {
+            "id": "18",
+            "title": "Unrestricted test",
+            "description": "Inspect another directory.",
+            "subtasks": [],
+        }}, "danger-full-access")
+        self.assertIn("sandbox is unrestricted", prompt)
+        self.assertNotIn("Work only inside", prompt)
+
+    def test_legacy_project_mapping_migrates_to_workspace(self) -> None:
+        config = self.config()
+        config["agents"][0].pop("workspace")
+        config["agents"][0]["projects"] = {"test-project": str(self.project)}
+        normalized = host_module.validate_config(config)
+        self.assertEqual(normalized["agents"][0]["workspace"], str(self.project))
+        self.assertNotIn("projects", normalized["agents"][0])
 
     def test_end_to_end_jsonl_bridge_feedback(self) -> None:
         client = NativeClient(self.environment)
@@ -160,6 +189,7 @@ class HostTests(unittest.TestCase):
             self.assertTrue(hello["ok"])
             saved = client.request("config.set", self.config())
             self.assertEqual(saved["data"]["agentCount"], 1)
+            self.assertEqual(saved["data"]["enabledAgentCount"], 1)
             agents = client.request("agent.list")
             self.assertEqual(agents["data"]["agents"][0]["adapter"], "jsonl-bridge")
             started = client.request("run.start", {
@@ -196,12 +226,29 @@ class HostTests(unittest.TestCase):
         finally:
             client.close()
 
+    def test_disabled_agent_is_preserved_but_unavailable(self) -> None:
+        client = NativeClient(self.environment)
+        try:
+            config = self.config()
+            config["agents"][0]["enabled"] = False
+            saved = client.request("config.set", config)
+            self.assertEqual(saved["data"], {"agentCount": 1, "enabledAgentCount": 0})
+            stored = client.request("config.get")
+            self.assertFalse(stored["data"]["agents"][0]["enabled"])
+            listed = client.request("agent.list")
+            self.assertEqual(listed["data"]["agents"], [])
+            ping = client.request("agent.ping", {"agentId": "fake-agent"})
+            self.assertFalse(ping["ok"])
+            self.assertEqual(ping["error"]["code"], "AGENT_DISABLED")
+        finally:
+            client.close()
+
     def test_base64_transport_for_windows_relay(self) -> None:
         client = NativeClient(self.environment, base64_transport=True)
         try:
             response = client.request("hello")
             self.assertTrue(response["ok"])
-            self.assertEqual(response["data"]["version"], "0.1.3")
+            self.assertEqual(response["data"]["version"], "0.1.5")
         finally:
             client.close()
 

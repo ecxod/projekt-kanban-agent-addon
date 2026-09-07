@@ -491,7 +491,7 @@ static int self_test(child_process *child) {
     free(response);
     int success = strstr(text, "\"requestId\":\"relay-self-test\"") != NULL &&
                   strstr(text, "\"ok\":true") != NULL &&
-                  strstr(text, "\"version\":\"0.1.3\"") != NULL;
+                  strstr(text, "\"version\":\"0.1.5\"") != NULL;
     free(text);
     return success ? 0 : 1;
 }

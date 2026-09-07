@@ -31,7 +31,7 @@
         name.textContent = agent.label;
         const meta = document.createElement("span");
         meta.className = "agent-meta";
-        meta.textContent = `${agent.adapter} · ${agent.transport} · ${agent.projects.join(", ")}`;
+        meta.textContent = `${agent.adapter} · ${agent.transport} · ${agent.sandbox === "danger-full-access" ? agent.startDirectory : agent.workspace}`;
         item.append(name, meta);
         agents.append(item);
       }

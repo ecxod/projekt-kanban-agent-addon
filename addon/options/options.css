@@ -49,6 +49,21 @@ section {
   gap: 10px;
 }
 
+.agent-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.agent-state-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #d9f7e5;
+  color: #116a37;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
 .agent-list { display: grid; gap: 14px; margin-top: 16px; }
 
 .agent-card {
@@ -56,6 +71,15 @@ section {
   border: 1px solid #d6dee8;
   border-radius: 10px;
   background: #f8fafc;
+}
+
+.agent-card.is-disabled {
+  border-style: dashed;
+}
+
+.agent-card.is-disabled .agent-state-badge {
+  background: #e5e7eb;
+  color: #526174;
 }
 
 .form-grid {
@@ -66,6 +90,16 @@ section {
 }
 
 label { display: grid; gap: 5px; font-weight: 600; }
+.sandbox-warning {
+  margin-top: 3px;
+  padding: 8px 10px;
+  border: 1px solid #dc2626;
+  border-radius: 7px;
+  background: #fff1f2;
+  color: #991b1b;
+  font-weight: 500;
+  line-height: 1.4;
+}
 input, select, textarea, button { font: inherit; }
 input, select, textarea {
   width: 100%;
@@ -77,8 +111,8 @@ input, select, textarea {
 }
 textarea { resize: vertical; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .9rem; }
 small { color: #64748b; font-weight: 400; }
-.projects-field { grid-column: 1 / -1; }
-.ssh-field[hidden], .arguments-field[hidden] { display: none; }
+.workspace-field { grid-column: 1 / -1; }
+.ssh-field[hidden], .arguments-field[hidden], .workspace-field[hidden], .sandbox-warning[hidden] { display: none; }
 
 button {
   padding: 7px 12px;
@@ -91,6 +125,7 @@ button {
 button:hover { background: #edf4fa; }
 button.primary { border-color: #145da0; background: #145da0; color: #fff; }
 button.danger { border-color: #b91c1c; color: #b91c1c; }
+button:disabled { cursor: not-allowed; opacity: .55; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 3px solid rgba(20, 93, 160, .28);
   outline-offset: 2px;
@@ -107,7 +142,10 @@ code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
   :root { background: #111827; color: #e5e7eb; }
   section { background: #1f2937; border-color: #475569; }
   .agent-card { background: #111827; border-color: #475569; }
+  .agent-state-badge { background: #164e32; color: #bbf7d0; }
+  .agent-card.is-disabled .agent-state-badge { background: #374151; color: #d1d5db; }
   .page-header p, .section-heading p, .status, small { color: #b8c4d3; }
+  .sandbox-warning { background: #3f171d; color: #fecdd3; border-color: #ef4444; }
   input, select, textarea, button { background: #172033; color: #e5e7eb; border-color: #64748b; }
   button:hover { background: #24324a; }
 }
@@ -115,6 +153,6 @@ code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
 @media (max-width: 700px) {
   main { width: min(100% - 20px, 980px); margin-top: 14px; }
   .form-grid { grid-template-columns: 1fr; }
-  .projects-field { grid-column: auto; }
+  .workspace-field { grid-column: auto; }
   .section-heading, .agent-card-header { align-items: flex-start; flex-direction: column; }
 }

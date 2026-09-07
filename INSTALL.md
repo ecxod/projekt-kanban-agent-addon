@@ -2,7 +2,7 @@
 
 ## Windows Firefox with an agent in WSL
 
-Extract `projekt-kanban-agent-0.1.3-windows-wsl.zip`, open PowerShell in the
+Extract `projekt-kanban-agent-0.1.5-windows-wsl.zip`, open PowerShell in the
 extracted directory, and run:
 
 ```powershell
@@ -26,10 +26,15 @@ Restart Firefox after installation. In the add-on settings use:
 - **Adapter:** `Codex CLI`
 - **Agentenprogramm:** the WSL path to Codex, for example
   `/mnt/c/Users/Christian/.codex/bin/wsl/codex`
-- **Freigegebene Projekte:** one WSL repository path per line, for example
-  `projekt-kanban=/mnt/c/Users/Christian/Projects/projekt-kanban`
+- **Sandbox:** `Arbeitsbereich schreiben`, `Nur lesen (Dry-Run)` or explicitly
+  `Uneingeschränkter Zugriff`
+- **Arbeitsbereich:** a directory containing any number of projects, for example
+  `/mnt/c/Users/Christian/workspace`
 
-The repository path must identify a directory containing `.git` inside WSL.
+With unrestricted access the workspace field is not used. The start directory
+is the agent user's home. In the Windows-WSL bundle a Codex executable below
+`/mnt/c/Users/<name>` starts in that Windows profile (the WSL spelling of
+`C:\Users\<name>`); otherwise the WSL/Linux home is used.
 
 ## Linux Firefox
 
@@ -51,7 +56,7 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.3-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.5-signed.xpi` from the extracted bundle.
 5. Confirm with **Add**.
 
 ## Configure an agent
@@ -59,7 +64,7 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 1. Open the add-on settings.
 2. Add a local or SSH agent.
 3. Select `Codex CLI` or the provider-neutral `JSONL bridge` adapter.
-4. Map the Kanban project ID to an absolute local repository path.
+4. For the restricted modes, select an absolute workspace containing your repositories.
 5. Save and use **Verbindung testen**.
 
 Provider credentials remain in the provider's own CLI or operating-system

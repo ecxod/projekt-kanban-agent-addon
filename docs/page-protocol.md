@@ -2,7 +2,7 @@
 
 The content script exposes a narrowly scoped `window.postMessage` protocol only
 on `https://projekt-kanban.de`. Protocol messages never contain agent
-credentials, executable paths, SSH destinations, or local repository paths.
+credentials, executable paths, SSH destinations, or user-configured workspace paths.
 
 ## Detect the add-on
 
@@ -30,7 +30,8 @@ window.postMessage({
 ## Start a run
 
 Starting a run always opens an add-on-controlled confirmation dialog. Only after
-the user confirms are the task fields sent to the native host.
+the user confirms are the task fields sent to the native host. An agent configured
+with `danger-full-access` additionally requires a warning checkbox for every run.
 
 ```js
 window.postMessage({

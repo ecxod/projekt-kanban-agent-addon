@@ -3,6 +3,7 @@
   "agents": [
     {
       "id": "local-codex",
+      "enabled": true,
       "label": "Local Codex",
       "adapter": "codex-exec",
       "transport": "local",
@@ -10,12 +11,11 @@
       "arguments": [],
       "sshHost": "",
       "sandbox": "workspace-write",
-      "projects": {
-        "projekt-kanban": "/home/user/src/projekt-kanban"
-      }
+      "workspace": "/home/user/src"
     },
     {
       "id": "local-gemini-wrapper",
+      "enabled": true,
       "label": "Local Gemini bridge",
       "adapter": "jsonl-bridge",
       "transport": "local",
@@ -23,9 +23,7 @@
       "arguments": [],
       "sshHost": "",
       "sandbox": "workspace-write",
-      "projects": {
-        "website": "/home/user/src/website"
-      }
+      "workspace": "/home/user/src"
     }
   ]
 }
