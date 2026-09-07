@@ -67,6 +67,11 @@ npm run build
 
 Artifacts are written to `dist/`.
 
+The Linux release bundle contains the XPI, Native Messaging host, installer,
+example configuration, license, and [`INSTALL.md`](INSTALL.md). The XPI must be
+signed by Mozilla before it can be installed persistently in Firefox Release or
+Beta; the unsigned build can be loaded temporarily through `about:debugging`.
+
 ## Agent configuration
 
 Each agent has:
