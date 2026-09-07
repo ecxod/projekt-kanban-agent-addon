@@ -1,0 +1,120 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #eef3f8;
+  color: #1f2937;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+main {
+  width: min(980px, calc(100% - 32px));
+  margin: 28px auto 60px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 4px; font-size: 1.7rem; }
+h2 { margin-bottom: 5px; font-size: 1.2rem; }
+h3 { margin: 0; font-size: 1.05rem; }
+.page-header p, .section-heading p { margin-bottom: 0; color: #566577; }
+
+section {
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, .06);
+}
+
+.notice { border-left: 5px solid #145da0; }
+.notice p { margin-bottom: 0; }
+
+.section-heading,
+.agent-card-header,
+.actions,
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-list { display: grid; gap: 14px; margin-top: 16px; }
+
+.agent-card {
+  padding: 16px;
+  border: 1px solid #d6dee8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  margin-top: 15px;
+}
+
+label { display: grid; gap: 5px; font-weight: 600; }
+input, select, textarea, button { font: inherit; }
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #9eacbd;
+  border-radius: 7px;
+  background: #fff;
+  color: #1f2937;
+}
+textarea { resize: vertical; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .9rem; }
+small { color: #64748b; font-weight: 400; }
+.projects-field { grid-column: 1 / -1; }
+.ssh-field[hidden], .arguments-field[hidden] { display: none; }
+
+button {
+  padding: 7px 12px;
+  border: 1px solid #8ca0b5;
+  border-radius: 7px;
+  background: #fff;
+  color: #263648;
+  cursor: pointer;
+}
+button:hover { background: #edf4fa; }
+button.primary { border-color: #145da0; background: #145da0; color: #fff; }
+button.danger { border-color: #b91c1c; color: #b91c1c; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(20, 93, 160, .28);
+  outline-offset: 2px;
+}
+
+.actions { justify-content: flex-start; margin-top: 18px; }
+.status { margin: 0; color: #526174; }
+.status.success { color: #14753d; }
+.status.error { color: #b42318; }
+.agent-status { margin-top: 10px; }
+code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
+
+@media (prefers-color-scheme: dark) {
+  :root { background: #111827; color: #e5e7eb; }
+  section { background: #1f2937; border-color: #475569; }
+  .agent-card { background: #111827; border-color: #475569; }
+  .page-header p, .section-heading p, .status, small { color: #b8c4d3; }
+  input, select, textarea, button { background: #172033; color: #e5e7eb; border-color: #64748b; }
+  button:hover { background: #24324a; }
+}
+
+@media (max-width: 700px) {
+  main { width: min(100% - 20px, 980px); margin-top: 14px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .projects-field { grid-column: auto; }
+  .section-heading, .agent-card-header { align-items: flex-start; flex-direction: column; }
+}

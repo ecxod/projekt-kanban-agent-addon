@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "outcome": {
+      "type": "string",
+      "enum": ["success", "partial", "needs_input", "failed"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["passed", "failed", "not_run"] },
+          "details": { "type": "string" }
+        },
+        "required": ["name", "status", "details"],
+        "additionalProperties": false
+      }
+    },
+    "changed_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "commit": {
+      "type": ["string", "null"]
+    },
+    "follow_up": {
+      "type": "string"
+    }
+  },
+  "required": ["outcome", "summary", "checks", "changed_files", "commit", "follow_up"],
+  "additionalProperties": false
+}

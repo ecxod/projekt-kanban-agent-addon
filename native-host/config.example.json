@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "local-codex",
+      "label": "Local Codex",
+      "adapter": "codex-exec",
+      "transport": "local",
+      "executable": "codex",
+      "arguments": [],
+      "sshHost": "",
+      "sandbox": "workspace-write",
+      "projects": {
+        "projekt-kanban": "/home/user/src/projekt-kanban"
+      }
+    },
+    {
+      "id": "local-gemini-wrapper",
+      "label": "Local Gemini bridge",
+      "adapter": "jsonl-bridge",
+      "transport": "local",
+      "executable": "/home/user/bin/gemini-kanban-bridge",
+      "arguments": [],
+      "sshHost": "",
+      "sandbox": "workspace-write",
+      "projects": {
+        "website": "/home/user/src/website"
+      }
+    }
+  ]
+}

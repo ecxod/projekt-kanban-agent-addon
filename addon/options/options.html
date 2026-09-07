@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projekt Kanban Agent Connector – Einstellungen</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <img src="../icons/agent.svg" alt="" width="52" height="52">
+      <div>
+        <h1>Projekt Kanban Agent Connector</h1>
+        <p>Eigene lokale oder per SSH erreichbare Coding-Agenten konfigurieren.</p>
+      </div>
+    </header>
+
+    <section class="notice" aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Datenschutz und Zugangsdaten</h2>
+      <p>Das Add-on speichert keine API-Keys oder SSH-Passwörter. Der lokale Native Host verwendet die bereits vorhandene Anmeldung des gewählten Agenten und von SSH. Task-Inhalte werden nur nach einer sichtbaren Bestätigung übertragen.</p>
+    </section>
+
+    <section aria-labelledby="bridge-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="bridge-title">Native Host</h2>
+          <p id="bridgeStatus" class="status">Verbindung wird geprüft …</p>
+        </div>
+        <button type="button" id="reload">Neu laden</button>
+      </div>
+      <p>Vor der ersten Verwendung muss die lokale Bridge mit <code>native-host/install-linux.sh</code> installiert werden.</p>
+    </section>
+
+    <section aria-labelledby="agents-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="agents-title">Agenten</h2>
+          <p>Jeder Agent kann mehrere Projektkennungen einem freigegebenen Repository-Pfad zuordnen.</p>
+        </div>
+        <button type="button" id="addAgent">Agent hinzufügen</button>
+      </div>
+      <div id="agents" class="agent-list" aria-live="polite"></div>
+      <div class="actions">
+        <button type="button" id="save" class="primary">Einstellungen speichern</button>
+        <span id="saveStatus" class="status" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+  </main>
+
+  <template id="agentTemplate">
+    <article class="agent-card">
+      <div class="agent-card-header">
+        <h3>Agent</h3>
+        <div class="card-actions">
+          <button type="button" class="test-agent">Verbindung testen</button>
+          <button type="button" class="remove-agent danger">Entfernen</button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label>Agent-ID
+          <input name="id" required maxlength="64" pattern="[A-Za-z0-9._-]+" placeholder="local-codex">
+        </label>
+        <label>Anzeigename
+          <input name="label" required maxlength="100" placeholder="Mein lokaler Codex">
+        </label>
+        <label>Verbindung
+          <select name="transport">
+            <option value="local">Lokal</option>
+            <option value="ssh">Entfernt über SSH</option>
+          </select>
+        </label>
+        <label>Adapter
+          <select name="adapter">
+            <option value="codex-exec">Codex CLI</option>
+            <option value="jsonl-bridge">Universelle JSONL Bridge</option>
+          </select>
+        </label>
+        <label>Agentenprogramm
+          <input name="executable" required maxlength="512" value="codex" placeholder="codex oder /usr/local/bin/meine-agent-bridge">
+        </label>
+        <label class="arguments-field">Feste Argumente
+          <input name="arguments" maxlength="1000" placeholder="Optional, ein Argument pro Zeile">
+          <small>Nur für JSONL Bridges. Ein Argument pro Zeile, keine Shell-Syntax.</small>
+        </label>
+        <label class="ssh-field">SSH-Ziel
+          <input name="sshHost" maxlength="255" placeholder="benutzer@entwicklungsrechner.example">
+        </label>
+        <label>Sandbox
+          <select name="sandbox">
+            <option value="read-only">Nur lesen</option>
+            <option value="workspace-write">Workspace schreiben</option>
+          </select>
+        </label>
+        <label class="projects-field">Freigegebene Projekte
+          <textarea name="projects" rows="4" required placeholder="projekt-kanban=/home/user/src/projekt-kanban&#10;website=/home/user/src/website"></textarea>
+          <small>Eine Zuordnung pro Zeile: <code>Projektkennung=/absoluter/repository/pfad</code></small>
+        </label>
+      </div>
+      <p class="agent-status status" role="status" aria-live="polite"></p>
+    </article>
+  </template>
+
+  <script src="options.js"></script>
+</body>
+</html>

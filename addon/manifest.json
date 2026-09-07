@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Projekt Kanban Agent Connector",
+  "version": "0.1.0",
+  "description": "Sends task content selected by the user on projekt-kanban.de to the user's own configured coding agent and returns structured run feedback.",
+  "icons": {
+    "48": "icons/agent.svg",
+    "96": "icons/agent.svg"
+  },
+  "action": {
+    "default_title": "Projekt Kanban Agent Connector – keine Kanban-Seite erkannt",
+    "default_popup": "popup/popup.html",
+    "default_icon": "icons/agent-inactive.svg"
+  },
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://projekt-kanban.de/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["https://projekt-kanban.de/*"],
+  "permissions": ["nativeMessaging"],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "incognito": "not_allowed",
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "projekt-kanban-agent@ecxod.de",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["websiteContent"]
+      }
+    }
+  }
+}
