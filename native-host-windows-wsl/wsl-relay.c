@@ -82,6 +82,13 @@ static void log_error(const wchar_t *message) {
     CloseHandle(log);
 }
 
+static int self_test_error(int code, const wchar_t *message) {
+    log_error(message);
+    fwprintf(stderr, L"%ls\n", message);
+    fflush(stderr);
+    return code;
+}
+
 static int write_all(HANDLE handle, const unsigned char *data, DWORD length) {
     DWORD offset = 0;
     while (offset < length) {
@@ -466,25 +473,25 @@ static int self_test(child_process *child) {
         "{\"kind\":\"request\",\"requestId\":\"relay-self-test\",\"action\":\"hello\",\"payload\":{}}";
     DWORD encoded_length = 0;
     char *encoded = base64_encode(request, (DWORD)strlen((const char *)request), &encoded_length);
-    if (!encoded) return 1;
+    if (!encoded) return self_test_error(21, L"Relay self-test could not encode its request.");
     int sent = write_all(child->stdin_write, (unsigned char *)encoded, encoded_length);
     free(encoded);
-    if (!sent) return 1;
+    if (!sent) return self_test_error(22, L"Relay self-test could not write its request to WSL.");
     CloseHandle(child->stdin_write);
     child->stdin_write = NULL;
 
     buffered_reader reader = {child->stdout_read, {0}, 0, 0};
     DWORD line_length = 0;
     char *line = read_base64_line(&reader, &line_length);
-    if (!line) return 1;
+    if (!line) return self_test_error(23, L"Relay self-test received no response line from the WSL native host.");
     DWORD response_length = 0;
     unsigned char *response = base64_decode(line, line_length, &response_length);
     free(line);
-    if (!response) return 1;
+    if (!response) return self_test_error(24, L"Relay self-test received an invalid base64 response from WSL.");
     char *text = (char *)malloc((size_t)response_length + 1U);
     if (!text) {
         free(response);
-        return 1;
+        return self_test_error(25, L"Relay self-test could not allocate its response buffer.");
     }
     memcpy(text, response, response_length);
     text[response_length] = '\0';
@@ -494,10 +501,10 @@ static int self_test(child_process *child) {
                   strstr(text, "\"name\":\"de.projekt_kanban.agent\"") != NULL &&
                   strstr(text, "\"protocol\":1") != NULL;
     if (!success) {
-        log_error(L"The WSL native host returned an unexpected relay self-test response.");
+        self_test_error(26, L"The WSL native host returned an unexpected relay self-test response.");
     }
     free(text);
-    return success ? 0 : 1;
+    return success ? 0 : 26;
 }
 
 int wmain(int argc, wchar_t **argv) {

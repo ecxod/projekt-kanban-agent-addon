@@ -90,9 +90,22 @@ for required in [
     "Agent starten (aktivieren)",
     "Agent stoppen (deaktivieren)",
     "--manager-configure-local",
+    "InitialDistribution",
+    "Get-WslDistributions",
+    "Microsoft\\Windows\\CurrentVersion\\Lxss",
 ]:
     if required not in windows_manager:
         fail(f"Windows manager is missing required behavior: {required}")
+
+windows_manager_launcher = (ROOT / "native-host-windows-wsl/start-agent-manager.cmd").read_text(encoding="ascii")
+for required in ["WSLDIST", "wsl.exe", "--list --quiet", "-InitialDistribution"]:
+    if required not in windows_manager_launcher:
+        fail(f"Windows manager launcher is missing WSL auto-detection: {required}")
+
+relay_source = (ROOT / "native-host-windows-wsl/wsl-relay.c").read_text(encoding="utf-8")
+for exit_code in range(21, 27):
+    if f"({exit_code}," not in relay_source and f"return {exit_code};" not in relay_source:
+        fail(f"Windows relay is missing self-test diagnostic exit code {exit_code}")
 
 linux_manager = ROOT / "native-host/agent-manager.sh"
 completed = subprocess.run(["bash", "-n", str(linux_manager)], capture_output=True, text=True)

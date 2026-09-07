@@ -2,7 +2,7 @@
 
 ## Windows Firefox with an agent in WSL
 
-Extract `projekt-kanban-agent-0.1.6-windows-wsl.zip` and double-click:
+Extract `projekt-kanban-agent-0.1.7-windows-wsl.zip` and double-click:
 
 ```text
 native-host-windows-wsl\start-agent-manager.cmd
@@ -65,7 +65,7 @@ The release bundle contains the XPI signed by Mozilla for self-distribution:
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.6-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.7-signed.xpi` from the extracted bundle.
 5. Confirm with **Add**.
 
 ## Configure an agent

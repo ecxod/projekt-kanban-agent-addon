@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $HostName = 'de.projekt_kanban.agent'
-$ExpectedVersion = '0.1.6'
+$ExpectedVersion = '0.1.7'
 $ExtensionId = 'projekt-kanban-agent@ecxod.de'
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PackageDirectory = Split-Path -Parent $ScriptDirectory
@@ -71,9 +71,16 @@ if ($SelfTest.version -ne $ExpectedVersion) {
 $RelayConfig = "$($WslCommand.Path)`r`n$Distribution`r`n$WslHostPath`r`n"
 [System.IO.File]::WriteAllText($RelayConfigPath, $RelayConfig, [System.Text.UTF8Encoding]::new($false))
 
-& $RelayPath --self-test
-if ($LASTEXITCODE -ne 0) {
-    throw "The Windows-to-WSL relay self-test failed. See $InstallDirectory\relay.log"
+$RelayOutput = @(& $RelayPath --self-test 2>&1)
+$RelayExitCode = $LASTEXITCODE
+if ($RelayExitCode -ne 0) {
+    $RelayLogPath = Join-Path $InstallDirectory 'relay.log'
+    $RelayDetails = ($RelayOutput -join ' ').Trim()
+    if (-not $RelayDetails -and (Test-Path -LiteralPath $RelayLogPath -PathType Leaf)) {
+        $RelayDetails = (@(Get-Content -LiteralPath $RelayLogPath -Tail 8) -join ' ').Trim()
+    }
+    if (-not $RelayDetails) { $RelayDetails = 'No diagnostic text was produced.' }
+    throw "The Windows-to-WSL relay self-test failed with exit code $RelayExitCode. $RelayDetails"
 }
 
 $Manifest = [ordered]@{

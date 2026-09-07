@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RELAY_SOURCE = ROOT / "native-host-windows-wsl" / "wsl-relay.c"
 FAKE_WSL_SOURCE = ROOT / "tests" / "fixtures" / "fake_wsl.c"
+FAKE_WSL_SILENT_SOURCE = ROOT / "tests" / "fixtures" / "fake_wsl_silent.c"
 
 
 @unittest.skipUnless(
@@ -25,17 +26,26 @@ class WindowsRelayTests(unittest.TestCase):
         self.directory = Path(self.temporary.name)
         self.relay = self.directory / "projekt-kanban-agent-wsl.exe"
         self.fake_wsl = self.directory / "fake-wsl.exe"
+        self.fake_wsl_silent = self.directory / "fake-wsl-silent.exe"
         common = [
             "x86_64-w64-mingw32-gcc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
             "-static", "-s", "-Wl,--no-insert-timestamp",
         ]
         subprocess.run([*common, "-municode", "-o", str(self.relay), str(RELAY_SOURCE)], check=True)
         subprocess.run([*common, "-o", str(self.fake_wsl), str(FAKE_WSL_SOURCE)], check=True)
+        subprocess.run([*common, "-o", str(self.fake_wsl_silent), str(FAKE_WSL_SILENT_SOURCE)], check=True)
         wine_environment = os.environ.copy()
         wine_environment["WINEDEBUG"] = "-all"
         self.environment = wine_environment
         windows_fake_wsl = subprocess.run(
             ["winepath", "-w", str(self.fake_wsl)],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=self.environment,
+        ).stdout.strip()
+        self.windows_fake_wsl_silent = subprocess.run(
+            ["winepath", "-w", str(self.fake_wsl_silent)],
             check=True,
             capture_output=True,
             text=True,
@@ -58,6 +68,24 @@ class WindowsRelayTests(unittest.TestCase):
             timeout=20,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr.decode(errors="replace"))
+
+    def test_relay_self_test_reports_missing_wsl_response(self) -> None:
+        (self.directory / "relay-config.txt").write_text(
+            f"{self.windows_fake_wsl_silent}\r\nDevuan\r\n/fake/kanban_agent_host.py\r\n",
+            encoding="utf-8",
+            newline="",
+        )
+        completed = subprocess.run(
+            ["wine", str(self.relay), "--self-test"],
+            env=self.environment,
+            capture_output=True,
+            timeout=20,
+        )
+        stderr = completed.stderr.decode(errors="replace")
+        self.assertEqual(completed.returncode, 23, stderr)
+        self.assertIn("received no response line", stderr)
+        log_bytes = (self.directory / "relay.log").read_bytes()
+        self.assertIn("received no response line", log_bytes.decode("utf-16"))
 
     def test_firefox_binary_frame_round_trip(self) -> None:
         process = subprocess.Popen(
@@ -82,7 +110,7 @@ class WindowsRelayTests(unittest.TestCase):
         length = struct.unpack("<I", header)[0]
         response = json.loads(process.stdout.read(length))
         self.assertTrue(response["ok"])
-        self.assertEqual(response["data"]["version"], "0.1.6")
+        self.assertEqual(response["data"]["version"], "0.1.7")
         process.stdin.close()
         process.wait(timeout=20)
         process.stdout.close()

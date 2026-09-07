@@ -27,6 +27,8 @@ have to be maintained manually in JSON files or shell commands.
   `native-host-windows-wsl/start-agent-manager.cmd`. The PowerShell window
   installs or updates the bridge, stores the Codex and workspace paths, tests
   the connection, activates/deactivates the agent, and uninstalls the bridge.
+  The launcher selects the default WSL distribution automatically; the manager
+  also reads the WSL registry as a fallback.
 - **Linux:** run `native-host/agent-manager.sh`. It uses `dialog` or `whiptail`
   when available and otherwise provides the same menu directly in the terminal.
 

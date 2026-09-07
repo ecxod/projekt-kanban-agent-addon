@@ -1,5 +1,7 @@
 ﻿[CmdletBinding()]
-param()
+param(
+    [string]$InitialDistribution = ''
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,36 @@ $UninstallScript = Join-Path $ScriptDirectory 'uninstall.ps1'
 $InstallDirectory = Join-Path $env:LOCALAPPDATA 'ProjektKanbanAgent'
 $InstalledHost = Join-Path $InstallDirectory 'kanban_agent_host.py'
 $WslCommand = Get-Command 'wsl.exe' -ErrorAction Stop
+
+function Normalize-DistributionName {
+    param([string]$Name)
+    return $Name.Replace([char]0, '').Trim([char]0xfeff).Trim()
+}
+
+function Get-WslDistributions {
+    $Names = New-Object System.Collections.Generic.List[string]
+    try {
+        $Raw = ((& $WslCommand.Path --list --quiet 2>$null) | Out-String).Replace([char]0, '')
+        foreach ($Line in ($Raw -split "`r?`n")) {
+            $Name = Normalize-DistributionName $Line
+            if ($Name -and -not $Names.Contains($Name)) { $Names.Add($Name) }
+        }
+    } catch {}
+
+    try {
+        $LxssPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss'
+        $Lxss = Get-ItemProperty -LiteralPath $LxssPath -ErrorAction Stop
+        if ($Lxss.DefaultDistribution) {
+            $DefaultPath = Join-Path $LxssPath ([string]$Lxss.DefaultDistribution)
+            $DefaultName = Normalize-DistributionName ([string](Get-ItemProperty -LiteralPath $DefaultPath -ErrorAction Stop).DistributionName)
+            if ($DefaultName) {
+                if ($Names.Contains($DefaultName)) { [void]$Names.Remove($DefaultName) }
+                $Names.Insert(0, $DefaultName)
+            }
+        }
+    } catch {}
+    return $Names.ToArray()
+}
 
 function Add-Label {
     param([string]$Text, [int]$Top)
@@ -179,11 +211,17 @@ $DistributionBox.Width = 455
 $DistributionBox.DropDownStyle = 'DropDown'
 $Form.Controls.Add($DistributionBox)
 
-try {
-    $Distributions = @(& $WslCommand.Path --list --quiet) | ForEach-Object { ([string]$_).Replace([char]0, '').Trim() } | Where-Object { $_ }
-    foreach ($Distribution in $Distributions) { [void]$DistributionBox.Items.Add($Distribution) }
-    if ($DistributionBox.Items.Count -gt 0) { $DistributionBox.SelectedIndex = 0 }
-} catch {}
+$InitialDistribution = Normalize-DistributionName $InitialDistribution
+$Distributions = @(Get-WslDistributions)
+foreach ($Distribution in $Distributions) { [void]$DistributionBox.Items.Add($Distribution) }
+if ($InitialDistribution -and $DistributionBox.Items.Contains($InitialDistribution)) {
+    $DistributionBox.SelectedItem = $InitialDistribution
+} elseif ($DistributionBox.Items.Count -gt 0) {
+    $DistributionBox.SelectedIndex = 0
+} elseif ($InitialDistribution) {
+    [void]$DistributionBox.Items.Add($InitialDistribution)
+    $DistributionBox.SelectedItem = $InitialDistribution
+}
 
 Add-Label 'Agent-ID' 140 | Out-Null
 $AgentIdBox = New-TextBox 140 'local-codex'
