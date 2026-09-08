@@ -28,7 +28,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-VERSION = "0.1.8.0"
+VERSION = "0.1.8.1"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024

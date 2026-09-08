@@ -1,6 +1,6 @@
 {
   "name": "projekt-kanban-agent-addon",
-  "version": "0.1.8.0",
+  "version": "0.1.8.1",
   "private": true,
   "description": "Firefox connector for user-owned coding agents",
   "scripts": {
