@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Projekt Kanban Agent Connector",
-  "version": "0.1.8.2",
+  "version": "0.1.8.3",
   "description": "Sends task content selected by the user on projekt-kanban.de to the user's own configured coding agent and returns structured run feedback.",
   "icons": {
     "48": "icons/agent.svg",

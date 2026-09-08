@@ -43,6 +43,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/projekt-kanban-agent-${{ steps.package.outputs.version }}.xpi
+            dist/projekt-kanban-agent-${{ steps.package.outputs.version }}-signed.xpi
             dist/projekt-kanban-agent-${{ steps.package.outputs.version }}-source.zip
             dist/projekt-kanban-agent-wsl.exe
             dist/SHA256SUMS

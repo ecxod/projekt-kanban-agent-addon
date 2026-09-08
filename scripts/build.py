@@ -14,6 +14,7 @@ DIST = ROOT / "dist"
 MANIFEST = json.loads((ADDON / "manifest.json").read_text(encoding="utf-8"))
 VERSION = MANIFEST["version"]
 XPI = DIST / f"projekt-kanban-agent-{VERSION}.xpi"
+SIGNED_XPI = DIST / f"projekt-kanban-agent-{VERSION}-signed.xpi"
 SOURCE = DIST / f"projekt-kanban-agent-{VERSION}-source.zip"
 CHECKSUMS = DIST / "SHA256SUMS"
 WINDOWS_RELAY = DIST / "projekt-kanban-agent-wsl.exe"
@@ -58,7 +59,10 @@ with zipfile.ZipFile(SOURCE, "w") as archive:
         add_file(archive, source, source.relative_to(ROOT).as_posix())
 
 checksum_lines = []
-for artifact in [XPI, SOURCE]:
+checksum_artifacts = [XPI, SOURCE]
+if SIGNED_XPI.is_file():
+    checksum_artifacts.insert(1, SIGNED_XPI)
+for artifact in checksum_artifacts:
     checksum_lines.append(f"{hashlib.sha256(artifact.read_bytes()).hexdigest()}  {artifact.name}")
 CHECKSUMS.write_text("\n".join(checksum_lines) + "\n", encoding="ascii")
 
