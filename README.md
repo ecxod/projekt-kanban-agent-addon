@@ -106,6 +106,9 @@ installation or upload to AMO for unlisted/listed signing.
 The add-on settings can also check GitHub releases for a newer version and
 open the installable XPI from the latest release.
 
+Tagged releases are published automatically by GitHub Actions when a `v*`
+tag is pushed.
+
 ## Build and test
 
 No third-party JavaScript is bundled and no package installation is required.
