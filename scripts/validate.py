@@ -42,6 +42,7 @@ addon_files = [
     "background.js",
     "content-script.js",
     "options/options.html",
+    "options/release-utils.js",
     "popup/popup.html",
     "icons/agent.svg",
     "icons/agent-inactive.svg",

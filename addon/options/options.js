@@ -11,39 +11,19 @@
   const githubVersion = document.getElementById("githubVersion");
   const githubPublished = document.getElementById("githubPublished");
   const githubStatus = document.getElementById("githubStatus");
+  const githubAsset = document.getElementById("githubAsset");
   const refreshReleasesButton = document.getElementById("refreshReleases");
   const updateReleaseButton = document.getElementById("updateRelease");
   const reloadButton = document.getElementById("reload");
   const expectedHostVersion = browser.runtime.getManifest().version;
   const githubRepository = "ecxod/projekt-kanban-agent-addon";
   const githubReleasesUrl = `https://api.github.com/repos/${githubRepository}/releases?per_page=20`;
+  const { compareVersions, getReleaseVersion, pickReleaseAsset, selectLatestRelease } = globalThis.PKReleaseUtils;
   let hostCompatible = false;
   let loadInProgress = false;
   let releaseLoadInProgress = false;
   let latestRelease = null;
-  let latestReleaseAssetUrl = "";
-
-  function normalizeVersion(version) {
-    return String(version || "")
-      .trim()
-      .replace(/^v/i, "")
-      .split(/[^0-9]+/)
-      .filter(Boolean)
-      .map((part) => Number.parseInt(part, 10) || 0);
-  }
-
-  function compareVersions(left, right) {
-    const a = normalizeVersion(left);
-    const b = normalizeVersion(right);
-    const length = Math.max(a.length, b.length);
-    for (let index = 0; index < length; index += 1) {
-      const delta = (a[index] || 0) - (b[index] || 0);
-      if (delta !== 0) {
-        return delta;
-      }
-    }
-    return 0;
-  }
+  let latestReleaseTargetUrl = "";
 
   function formatReleaseDate(value) {
     if (!value) {
@@ -57,17 +37,6 @@
     } catch (_) {
       return value;
     }
-  }
-
-  function pickReleaseAsset(release) {
-    if (!release || !Array.isArray(release.assets)) {
-      return null;
-    }
-    const preferred = release.assets.find((asset) => asset && typeof asset.name === "string" && asset.name.endsWith("-signed.xpi"));
-    if (preferred) {
-      return preferred;
-    }
-    return release.assets.find((asset) => asset && typeof asset.name === "string" && asset.name.endsWith(".xpi")) || null;
   }
 
   function releaseDisplayVersion(release) {
@@ -87,43 +56,58 @@
 
   function renderInstalledState() {
     installedVersion.textContent = expectedHostVersion;
-    installedStatus.textContent = "Aktuell installiert";
+    installedStatus.textContent = "Installiert";
   }
 
   function renderReleaseRow(release) {
     latestRelease = release || null;
-    latestReleaseAssetUrl = "";
+    latestReleaseTargetUrl = "";
     if (!latestRelease) {
       githubVersion.textContent = "—";
       githubPublished.textContent = "—";
       githubStatus.textContent = "Keine veröffentlichte Version gefunden";
+      githubAsset.textContent = "—";
       updateReleaseButton.textContent = "Update installieren";
       setReleaseActionEnabled(false);
       return;
     }
     const version = releaseDisplayVersion(latestRelease);
-    const asset = pickReleaseAsset(latestRelease);
-    latestReleaseAssetUrl = asset ? asset.browser_download_url : latestRelease.html_url || "";
+    const releaseVersion = getReleaseVersion(latestRelease);
+    const assetSelection = pickReleaseAsset(latestRelease);
+    const asset = assetSelection.asset;
+    latestReleaseTargetUrl = asset ? asset.browser_download_url : latestRelease.html_url || "";
     githubVersion.textContent = version;
     githubPublished.textContent = formatReleaseDate(latestRelease.published_at || latestRelease.created_at);
-    if (latestRelease.prerelease) {
-      githubStatus.textContent = "Vorabversion";
-    } else if (compareVersions(version, expectedHostVersion) > 0) {
-      githubStatus.textContent = "Update verfügbar";
-    } else if (compareVersions(version, expectedHostVersion) < 0) {
+    githubAsset.textContent = asset
+      ? `${asset.name}${assetSelection.kind === "signed" ? " (signiert)" : " (nicht signiert)"}`
+      : `Kein passendes XPI für ${releaseVersion || "diese Version"}`;
+    const versionComparison = releaseVersion ? compareVersions(releaseVersion, expectedHostVersion) : null;
+    if (versionComparison === null) {
+      githubStatus.textContent = "Versionsnummer des Release-Tags fehlt";
+    } else if (versionComparison > 0 && assetSelection.kind === "signed") {
+      githubStatus.textContent = "Update verfügbar (signiert)";
+    } else if (versionComparison > 0 && assetSelection.kind === "unsigned") {
+      githubStatus.textContent = "Update verfügbar (nicht signiert)";
+    } else if (versionComparison > 0) {
+      githubStatus.textContent = "Neue Version, passendes XPI fehlt";
+    } else if (versionComparison < 0) {
       githubStatus.textContent = "Lokale Version ist neuer";
+    } else if (assetSelection.kind === "missing") {
+      githubStatus.textContent = "Aktuell, passendes XPI fehlt";
     } else {
       githubStatus.textContent = "Aktuell";
     }
-    updateReleaseButton.textContent = asset ? "Update installieren" : "Release öffnen";
-    setReleaseActionEnabled(Boolean(latestReleaseAssetUrl));
+    updateReleaseButton.textContent = assetSelection.kind === "signed"
+      ? "Update installieren"
+      : (assetSelection.kind === "unsigned" ? "XPI herunterladen" : "Release öffnen");
+    setReleaseActionEnabled(Boolean(latestReleaseTargetUrl));
   }
 
   async function openLatestRelease() {
-    if (!latestReleaseAssetUrl) {
-      throw new Error("Für diese Version ist kein XPI-Download gefunden worden.");
+    if (!latestReleaseTargetUrl) {
+      throw new Error("Für diese Version ist kein passendes Release-Ziel gefunden worden.");
     }
-    await browser.tabs.create({ url: latestReleaseAssetUrl, active: true });
+    await browser.tabs.create({ url: latestReleaseTargetUrl, active: true });
   }
 
   async function loadReleases() {
@@ -150,21 +134,30 @@
         throw new Error(`GitHub-Antwort ${response.status} ${response.statusText}`);
       }
       const releases = await response.json();
-      const publishedReleases = Array.isArray(releases) ? releases.filter((release) => release && !release.draft) : [];
-      const selectedRelease = publishedReleases.find((release) => !release.prerelease) || publishedReleases[0] || null;
+      const selectedRelease = selectLatestRelease(releases);
       if (!selectedRelease) {
         renderReleaseRow(null);
-        renderReleaseState("Auf GitHub sind noch keine Releases veröffentlicht.", "error");
+        renderReleaseState("Auf GitHub sind noch keine stabilen Releases veröffentlicht.", "error");
         return;
       }
       renderReleaseRow(selectedRelease);
-      const version = releaseDisplayVersion(selectedRelease);
-      if (!selectedRelease.prerelease && compareVersions(version, expectedHostVersion) > 0) {
-        renderReleaseState(`Neue Version ${version} ist auf GitHub verfügbar.`, "success");
-      } else if (compareVersions(version, expectedHostVersion) === 0) {
+      const version = getReleaseVersion(selectedRelease) || releaseDisplayVersion(selectedRelease);
+      const versionComparison = getReleaseVersion(selectedRelease)
+        ? compareVersions(version, expectedHostVersion)
+        : null;
+      const assetSelection = pickReleaseAsset(selectedRelease);
+      if (versionComparison === null) {
+        renderReleaseState("Das Release enthält keine auslesbare Versionsnummer.", "error");
+      } else if (versionComparison > 0 && assetSelection.kind === "signed") {
+        renderReleaseState(`Neue signierte Version ${version} ist auf GitHub verfügbar.`, "success");
+      } else if (versionComparison > 0 && assetSelection.kind === "unsigned") {
+        renderReleaseState(`Neue Version ${version} ist verfügbar, aber das XPI ist nicht signiert.`, "error");
+      } else if (versionComparison > 0) {
+        renderReleaseState(`Version ${version} ist verfügbar, aber ohne passendes XPI.`, "error");
+      } else if (versionComparison === 0) {
         renderReleaseState(`Installierte Version ${expectedHostVersion} ist aktuell.`, "success");
-      } else if (selectedRelease.prerelease) {
-        renderReleaseState(`Vorabversion ${version} gefunden.`, "success");
+      } else if (versionComparison < 0) {
+        renderReleaseState(`GitHub meldet Version ${version}; die lokale Version ist neuer.`, "success");
       } else {
         renderReleaseState(`GitHub meldet Version ${version}.`, "success");
       }
@@ -174,7 +167,7 @@
     } finally {
       releaseLoadInProgress = false;
       refreshReleasesButton.disabled = false;
-      if (latestReleaseAssetUrl) {
+      if (latestReleaseTargetUrl) {
         updateReleaseButton.disabled = false;
       }
     }
@@ -390,7 +383,7 @@
     } catch (error) {
       renderReleaseState(error.message, "error");
     } finally {
-      if (latestReleaseAssetUrl) {
+      if (latestReleaseTargetUrl) {
         setReleaseActionEnabled(true);
       }
     }

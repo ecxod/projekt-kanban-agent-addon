@@ -123,7 +123,7 @@ class HostTests(unittest.TestCase):
         response = json.loads(completed.stdout)
         self.assertEqual(response, {
             "name": "de.projekt_kanban.agent",
-            "version": "0.1.8.1",
+            "version": "0.1.8.2",
             "protocol": 1,
         })
 
@@ -254,7 +254,7 @@ class HostTests(unittest.TestCase):
         try:
             response = client.request("hello")
             self.assertTrue(response["ok"])
-            self.assertEqual(response["data"]["version"], "0.1.8.1")
+            self.assertEqual(response["data"]["version"], "0.1.8.2")
         finally:
             client.close()
 

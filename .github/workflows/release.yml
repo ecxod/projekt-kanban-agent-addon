@@ -24,6 +24,14 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Verify tag matches package version
+        id: package
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag_version="${GITHUB_REF_NAME#v}"
+          test "$tag_version" = "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Build release artifacts
         run: npm run build
 
@@ -34,4 +42,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            dist/*
+            dist/projekt-kanban-agent-${{ steps.package.outputs.version }}.xpi
+            dist/projekt-kanban-agent-${{ steps.package.outputs.version }}-source.zip
+            dist/projekt-kanban-agent-wsl.exe
+            dist/SHA256SUMS

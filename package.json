@@ -1,11 +1,11 @@
 {
   "name": "projekt-kanban-agent-addon",
-  "version": "0.1.8.1",
+  "version": "0.1.8.2",
   "private": true,
   "description": "Firefox connector for user-owned coding agents",
   "scripts": {
     "validate": "python3 scripts/validate.py",
-    "test": "python3 scripts/validate.py && python3 -m unittest discover -s tests -v && node tests/test_background.js",
+    "test": "python3 scripts/validate.py && python3 -m unittest discover -s tests -v && node tests/test_background.js && node tests/test_release_selection.js",
     "build": "python3 scripts/build.py",
     "release:package": "python3 scripts/package_signed_release.py"
   },

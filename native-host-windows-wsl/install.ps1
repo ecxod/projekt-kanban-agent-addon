@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $HostName = 'de.projekt_kanban.agent'
-$ExpectedVersion = '0.1.8.1'
+$ExpectedVersion = '0.1.8.2'
 $ExtensionId = 'projekt-kanban-agent@ecxod.de'
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PackageDirectory = Split-Path -Parent $ScriptDirectory

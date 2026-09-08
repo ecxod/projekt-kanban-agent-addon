@@ -32,6 +32,7 @@
               <th scope="col">Version</th>
               <th scope="col">Veröffentlicht</th>
               <th scope="col">Status</th>
+              <th scope="col">Paket</th>
               <th scope="col">Aktion</th>
             </tr>
           </thead>
@@ -42,18 +43,20 @@
               <td>lokal</td>
               <td id="installedStatus"></td>
               <td>--</td>
+              <td>--</td>
             </tr>
             <tr>
               <th scope="row">GitHub</th>
               <td id="githubVersion">--</td>
               <td id="githubPublished">--</td>
               <td id="githubStatus">--</td>
+              <td id="githubAsset">--</td>
               <td><button type="button" id="updateRelease" disabled>Update installieren</button></td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="release-note">Der Button öffnet das installierbare XPI oder das Release auf GitHub. Firefox verlangt danach weiterhin die Installationsbestätigung.</p>
+      <p class="release-note">Ausgewählt wird nur ein XPI mit exakt derselben Versionsnummer wie der Release-Tag. Ein signiertes XPI wird bevorzugt; Testpakete und XPI-Dateien älterer Versionen werden ignoriert.</p>
     </section>
 
     <section aria-labelledby="bridge-title">
@@ -143,6 +146,7 @@
     </article>
   </template>
 
+  <script src="release-utils.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
