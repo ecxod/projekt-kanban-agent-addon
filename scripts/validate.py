@@ -23,8 +23,13 @@ if package.get("version") != manifest.get("version"):
     fail("package and extension versions must match")
 if manifest.get("permissions") != ["nativeMessaging"]:
     fail("extension must request only nativeMessaging API permission")
-if manifest.get("host_permissions") != ["https://projekt-kanban.de/*"]:
-    fail("host permission must be restricted to projekt-kanban.de")
+expected_host_permissions = [
+    "https://api.github.com/*",
+    "https://github.com/*",
+    "https://projekt-kanban.de/*",
+]
+if manifest.get("host_permissions") != expected_host_permissions:
+    fail("host permissions must be restricted to GitHub and projekt-kanban.de")
 gecko = manifest.get("browser_specific_settings", {}).get("gecko", {})
 if gecko.get("strict_min_version") != "128.0":
     fail("desktop Firefox compatibility must start at ESR 128")

@@ -28,12 +28,18 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-VERSION = "0.1.7"
+VERSION = "0.1.8.0"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024
 MAX_EVENT_TEXT = 24 * 1024
 MAX_STORED_EVENTS = 250
+AGENT_TEST_TIMEOUT_SECONDS = 90
+AGENT_TEST_PROMPT = (
+    "Hallo Agent, bitte melde Dich! Dies ist ausschließlich ein Verbindungstest. "
+    "Ändere keine Dateien und führe keine weiteren Aktionen aus. "
+    "Antworte mit einem kurzen Satz auf Deutsch."
+)
 ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 SSH_HOST_PATTERN = re.compile(r"^[A-Za-z0-9_.@:-]{1,255}$")
 EXECUTABLE_PATTERN = re.compile(r"^[A-Za-z0-9_./+~-]{1,512}$")
@@ -328,20 +334,25 @@ def shell_join(arguments: list[str]) -> str:
     return " ".join(shlex.quote(argument) for argument in arguments)
 
 
-def codex_arguments(agent: dict[str, Any], schema_path: Path) -> list[str]:
+def codex_arguments(agent: dict[str, Any], schema_path: Path, sandbox: str | None = None) -> list[str]:
     base = [
-        agent["executable"], "exec", "--json", "--sandbox", agent["sandbox"],
+        agent["executable"], "exec", "--json", "--sandbox", sandbox or agent["sandbox"],
         "--skip-git-repo-check", "--output-schema", str(schema_path)
     ]
     return base
 
 
-def build_process(agent: dict[str, Any], workspace_path: str, schema_path: Path) -> tuple[list[str], Path | None]:
+def build_process(
+    agent: dict[str, Any],
+    workspace_path: str,
+    schema_path: Path,
+    sandbox_override: str | None = None,
+) -> tuple[list[str], Path | None]:
     if agent["transport"] == "local":
         start_directory = str(default_local_home(agent)) if agent["sandbox"] == "danger-full-access" else workspace_path
         workspace = verify_local_workspace(start_directory)
         if agent["adapter"] == "codex-exec":
-            command = codex_arguments(agent, schema_path)
+            command = codex_arguments(agent, schema_path, sandbox_override)
         else:
             command = [agent["executable"], *agent["arguments"]]
         return command, workspace
@@ -353,7 +364,7 @@ def build_process(agent: dict[str, Any], workspace_path: str, schema_path: Path)
             "schema_file=$(mktemp) || exit 70; "
             f"printf %s {shlex.quote(schema_data)} | base64 -d > \"$schema_file\" || exit 71; "
             f"{remote_cd} || exit 72; "
-            f"{shell_join([agent['executable'], 'exec', '--json', '--sandbox', agent['sandbox'], '--skip-git-repo-check', '--output-schema'])} \"$schema_file\"; "
+            f"{shell_join([agent['executable'], 'exec', '--json', '--sandbox', sandbox_override or agent['sandbox'], '--skip-git-repo-check', '--output-schema'])} \"$schema_file\"; "
             "status=$?; rm -f \"$schema_file\"; exit $status"
         )
     else:
@@ -477,6 +488,56 @@ def clean_result(source: dict[str, Any]) -> dict[str, Any]:
         "commit": commit,
         "follow_up": truncate_text(source.get("follow_up"), 8000),
     }
+
+
+def extract_test_response(output: str, adapter: str) -> str:
+    """Extract a short human-readable answer from a test run."""
+    candidates: list[str] = []
+    for line in output.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") == "item.completed" and isinstance(event.get("item"), dict):
+            item = event["item"]
+            if item.get("type") == "agent_message":
+                candidates.append(str(item.get("text") or ""))
+        elif adapter == "jsonl-bridge" and event.get("type") in {"message", "result", "response"}:
+            candidates.append(str(event.get("message") or event.get("text") or event.get("summary") or ""))
+
+    for candidate in reversed(candidates):
+        candidate = candidate.strip()
+        if not candidate:
+            continue
+        try:
+            structured = json.loads(candidate)
+        except json.JSONDecodeError:
+            return truncate_text(candidate, 2000)
+        if isinstance(structured, dict):
+            summary = str(structured.get("summary") or structured.get("message") or structured.get("follow_up") or "").strip()
+            if summary:
+                return truncate_text(summary, 2000)
+        else:
+            return truncate_text(candidate, 2000)
+    return ""
+
+
+def extract_test_error(output: str) -> str:
+    for line in reversed(output.splitlines()):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        error = event.get("error")
+        if isinstance(error, dict) and error.get("message"):
+            return truncate_text(str(error["message"]), 2000)
+        if event.get("type") in {"error", "turn.failed"} and event.get("message"):
+            return truncate_text(str(event["message"]), 2000)
+    return ""
 
 
 def run_job(job_directory: Path) -> int:
@@ -677,6 +738,8 @@ def manager_command(arguments: list[str]) -> dict[str, Any]:
         return manager_disable_agent(values[0])
     if command == "--manager-ping" and len(values) == 1:
         return NativeHost().ping_agent({"agentId": values[0]})
+    if command == "--manager-test" and len(values) == 1:
+        return NativeHost().test_agent({"agentId": values[0]})
     raise ProtocolError("INVALID_MANAGER_COMMAND", f"Unsupported manager command: {command}")
 
 
@@ -793,6 +856,8 @@ class NativeHost:
             return {"agents": [public_agent(agent) for agent in self.load_config()["agents"] if agent["enabled"]]}
         if action == "agent.ping":
             return self.ping_agent(payload)
+        if action == "agent.test":
+            return self.test_agent(payload)
         if action == "run.start":
             return self.start_run(payload)
         if action == "run.status":
@@ -833,6 +898,67 @@ class NativeHost:
         if completed.returncode != 0:
             raise ProtocolError("AGENT_UNAVAILABLE", truncate_text(completed.stderr.decode("utf-8", errors="replace"), 2000) or "Remote agent is unavailable.")
         return {"message": f"{agent['label']} is reachable over SSH.", "agent": public_agent(agent)}
+
+    def test_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        agent = find_agent(self.load_config(), payload.get("agentId"))
+        if agent["transport"] == "local":
+            executable = agent["executable"]
+            resolved = executable if Path(executable).is_absolute() else shutil.which(executable)
+            if not resolved or not Path(resolved).is_file():
+                raise ProtocolError("AGENT_UNAVAILABLE", f"Agent program not found: {executable}")
+
+        test_task = {"id": "connection-test", "title": "Verbindungstest"}
+        if agent["adapter"] == "jsonl-bridge":
+            stdin_payload = json.dumps({
+                "protocol": "projekt-kanban-agent/1",
+                "type": "run",
+                "runId": "connection-test",
+                "projectId": "connection-test",
+                "sandbox": "read-only",
+                "task": test_task,
+                "prompt": AGENT_TEST_PROMPT,
+            }, ensure_ascii=False) + "\n"
+        else:
+            stdin_payload = AGENT_TEST_PROMPT
+
+        workspace_path = agent["workspace"]
+        if agent["sandbox"] == "danger-full-access":
+            workspace_path = str(default_local_home(agent)) if agent["transport"] == "local" else agent["workspace"]
+        with tempfile.TemporaryDirectory(prefix="projekt-kanban-agent-test-"):
+            command, cwd = build_process(
+                agent,
+                workspace_path,
+                Path(__file__).with_name("feedback-schema.json"),
+                sandbox_override="read-only",
+            )
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=str(cwd) if cwd else None,
+                    input=stdin_payload,
+                    capture_output=True,
+                    text=True,
+                    timeout=AGENT_TEST_TIMEOUT_SECONDS,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as error:
+                raise ProtocolError("AGENT_TEST_TIMEOUT", "Der Verbindungstest hat nach 90 Sekunden keine Antwort erhalten.") from error
+            except OSError as error:
+                raise ProtocolError("AGENT_UNAVAILABLE", f"Agent konnte nicht gestartet werden: {error}") from error
+
+        if completed.returncode != 0:
+            detail = extract_test_error(completed.stdout) or extract_test_error(completed.stderr)
+            detail = detail or completed.stderr.strip()[-2000:] or completed.stdout.strip()[-2000:]
+            raise ProtocolError("AGENT_TEST_FAILED", detail or f"Der Agent beendete den Test mit Exit-Code {completed.returncode}.")
+
+        response_text = extract_test_response(completed.stdout, agent["adapter"])
+        if not response_text:
+            raise ProtocolError("AGENT_TEST_FAILED", "Der Agent hat keine lesbare Antwort zurückgegeben.")
+        return {
+            "message": response_text,
+            "agent": public_agent(agent),
+            "prompt": AGENT_TEST_PROMPT,
+        }
 
     def start_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         config = self.load_config()

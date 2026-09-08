@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Projekt Kanban Agent Connector",
-  "version": "0.1.7",
+  "version": "0.1.8.0",
   "description": "Sends task content selected by the user on projekt-kanban.de to the user's own configured coding agent and returns structured run feedback.",
   "icons": {
     "48": "icons/agent.svg",
@@ -23,8 +23,12 @@
       "run_at": "document_idle"
     }
   ],
-  "host_permissions": ["https://projekt-kanban.de/*"],
   "permissions": ["nativeMessaging"],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://github.com/*",
+    "https://projekt-kanban.de/*"
+  ],
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": true

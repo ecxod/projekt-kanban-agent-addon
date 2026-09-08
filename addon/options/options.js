@@ -3,12 +3,182 @@
 
   const agentsContainer = document.getElementById("agents");
   const template = document.getElementById("agentTemplate");
+  const releaseStatus = document.getElementById("releaseStatus");
   const bridgeStatus = document.getElementById("bridgeStatus");
   const saveStatus = document.getElementById("saveStatus");
+  const installedVersion = document.getElementById("installedVersion");
+  const installedStatus = document.getElementById("installedStatus");
+  const githubVersion = document.getElementById("githubVersion");
+  const githubPublished = document.getElementById("githubPublished");
+  const githubStatus = document.getElementById("githubStatus");
+  const refreshReleasesButton = document.getElementById("refreshReleases");
+  const updateReleaseButton = document.getElementById("updateRelease");
   const reloadButton = document.getElementById("reload");
   const expectedHostVersion = browser.runtime.getManifest().version;
+  const githubRepository = "ecxod/projekt-kanban-agent-addon";
+  const githubReleasesUrl = `https://api.github.com/repos/${githubRepository}/releases?per_page=20`;
   let hostCompatible = false;
   let loadInProgress = false;
+  let releaseLoadInProgress = false;
+  let latestRelease = null;
+  let latestReleaseAssetUrl = "";
+
+  function normalizeVersion(version) {
+    return String(version || "")
+      .trim()
+      .replace(/^v/i, "")
+      .split(/[^0-9]+/)
+      .filter(Boolean)
+      .map((part) => Number.parseInt(part, 10) || 0);
+  }
+
+  function compareVersions(left, right) {
+    const a = normalizeVersion(left);
+    const b = normalizeVersion(right);
+    const length = Math.max(a.length, b.length);
+    for (let index = 0; index < length; index += 1) {
+      const delta = (a[index] || 0) - (b[index] || 0);
+      if (delta !== 0) {
+        return delta;
+      }
+    }
+    return 0;
+  }
+
+  function formatReleaseDate(value) {
+    if (!value) {
+      return "—";
+    }
+    try {
+      return new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(new Date(value));
+    } catch (_) {
+      return value;
+    }
+  }
+
+  function pickReleaseAsset(release) {
+    if (!release || !Array.isArray(release.assets)) {
+      return null;
+    }
+    const preferred = release.assets.find((asset) => asset && typeof asset.name === "string" && asset.name.endsWith("-signed.xpi"));
+    if (preferred) {
+      return preferred;
+    }
+    return release.assets.find((asset) => asset && typeof asset.name === "string" && asset.name.endsWith(".xpi")) || null;
+  }
+
+  function releaseDisplayVersion(release) {
+    if (!release) {
+      return "—";
+    }
+    return String(release.tag_name || release.name || "—").trim() || "—";
+  }
+
+  function setReleaseActionEnabled(enabled) {
+    updateReleaseButton.disabled = !enabled;
+  }
+
+  function renderReleaseState(message, type = "") {
+    setStatus(releaseStatus, message, type);
+  }
+
+  function renderInstalledState() {
+    installedVersion.textContent = expectedHostVersion;
+    installedStatus.textContent = "Aktuell installiert";
+  }
+
+  function renderReleaseRow(release) {
+    latestRelease = release || null;
+    latestReleaseAssetUrl = "";
+    if (!latestRelease) {
+      githubVersion.textContent = "—";
+      githubPublished.textContent = "—";
+      githubStatus.textContent = "Keine veröffentlichte Version gefunden";
+      updateReleaseButton.textContent = "Update installieren";
+      setReleaseActionEnabled(false);
+      return;
+    }
+    const version = releaseDisplayVersion(latestRelease);
+    const asset = pickReleaseAsset(latestRelease);
+    latestReleaseAssetUrl = asset ? asset.browser_download_url : latestRelease.html_url || "";
+    githubVersion.textContent = version;
+    githubPublished.textContent = formatReleaseDate(latestRelease.published_at || latestRelease.created_at);
+    if (latestRelease.prerelease) {
+      githubStatus.textContent = "Vorabversion";
+    } else if (compareVersions(version, expectedHostVersion) > 0) {
+      githubStatus.textContent = "Update verfügbar";
+    } else if (compareVersions(version, expectedHostVersion) < 0) {
+      githubStatus.textContent = "Lokale Version ist neuer";
+    } else {
+      githubStatus.textContent = "Aktuell";
+    }
+    updateReleaseButton.textContent = asset ? "Update installieren" : "Release öffnen";
+    setReleaseActionEnabled(Boolean(latestReleaseAssetUrl));
+  }
+
+  async function openLatestRelease() {
+    if (!latestReleaseAssetUrl) {
+      throw new Error("Für diese Version ist kein XPI-Download gefunden worden.");
+    }
+    await browser.tabs.create({ url: latestReleaseAssetUrl, active: true });
+  }
+
+  async function loadReleases() {
+    if (releaseLoadInProgress) {
+      return;
+    }
+    releaseLoadInProgress = true;
+    refreshReleasesButton.disabled = true;
+    updateReleaseButton.disabled = true;
+    renderInstalledState();
+    renderReleaseState("GitHub-Releases werden geprüft …");
+    githubVersion.textContent = "…";
+    githubPublished.textContent = "…";
+    githubStatus.textContent = "…";
+    try {
+      const response = await fetch(githubReleasesUrl, {
+        cache: "no-store",
+        headers: {
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`GitHub-Antwort ${response.status} ${response.statusText}`);
+      }
+      const releases = await response.json();
+      const publishedReleases = Array.isArray(releases) ? releases.filter((release) => release && !release.draft) : [];
+      const selectedRelease = publishedReleases.find((release) => !release.prerelease) || publishedReleases[0] || null;
+      if (!selectedRelease) {
+        renderReleaseRow(null);
+        renderReleaseState("Auf GitHub sind noch keine Releases veröffentlicht.", "error");
+        return;
+      }
+      renderReleaseRow(selectedRelease);
+      const version = releaseDisplayVersion(selectedRelease);
+      if (!selectedRelease.prerelease && compareVersions(version, expectedHostVersion) > 0) {
+        renderReleaseState(`Neue Version ${version} ist auf GitHub verfügbar.`, "success");
+      } else if (compareVersions(version, expectedHostVersion) === 0) {
+        renderReleaseState(`Installierte Version ${expectedHostVersion} ist aktuell.`, "success");
+      } else if (selectedRelease.prerelease) {
+        renderReleaseState(`Vorabversion ${version} gefunden.`, "success");
+      } else {
+        renderReleaseState(`GitHub meldet Version ${version}.`, "success");
+      }
+    } catch (error) {
+      renderReleaseRow(null);
+      renderReleaseState(`GitHub-Releases konnten nicht geladen werden: ${error.message}`, "error");
+    } finally {
+      releaseLoadInProgress = false;
+      refreshReleasesButton.disabled = false;
+      if (latestReleaseAssetUrl) {
+        updateReleaseButton.disabled = false;
+      }
+    }
+  }
 
   function setStatus(element, message, type = "") {
     element.textContent = message;
@@ -107,8 +277,10 @@
       try {
         await saveAgents();
         setStatus(status, "Verbindung wird geprüft …");
-        const result = await nativeRequest("agent.ping", { agentId: card.querySelector('[name="id"]').value.trim() });
-        setStatus(status, result.message || "Agent ist erreichbar.", "success");
+        const result = await nativeRequest("agent.test", { agentId: card.querySelector('[name="id"]').value.trim() });
+        const message = result.message || "Der Agent hat den Verbindungstest beantwortet.";
+        setStatus(status, message, "success");
+        window.alert(`Agent-Antwort:\n\n${message}`);
       } catch (error) {
         setStatus(status, error.message, "error");
       }
@@ -210,6 +382,19 @@
     }
   }
 
+  refreshReleasesButton.addEventListener("click", loadReleases);
+  updateReleaseButton.addEventListener("click", async () => {
+    try {
+      setReleaseActionEnabled(false);
+      await openLatestRelease();
+    } catch (error) {
+      renderReleaseState(error.message, "error");
+    } finally {
+      if (latestReleaseAssetUrl) {
+        setReleaseActionEnabled(true);
+      }
+    }
+  });
   document.getElementById("addAgent").addEventListener("click", () => addAgent());
   document.getElementById("save").addEventListener("click", async () => {
     try {
@@ -220,5 +405,7 @@
     }
   });
   document.getElementById("reload").addEventListener("click", load);
+  renderInstalledState();
+  loadReleases();
   load();
 }());

@@ -39,6 +39,41 @@ section {
 .notice { border-left: 5px solid #145da0; }
 .notice p { margin-bottom: 0; }
 
+.release-panel {
+  overflow-x: auto;
+  margin-top: 14px;
+}
+
+.release-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.release-table th,
+.release-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #d6dee8;
+  text-align: left;
+  vertical-align: top;
+}
+
+.release-table thead th {
+  font-size: .9rem;
+  color: #5a6979;
+  background: #f4f7fb;
+}
+
+.release-table tbody tr:last-child th,
+.release-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.release-note {
+  margin: 14px 0 0;
+  color: #64748b;
+}
+
 .section-heading,
 .agent-card-header,
 .actions,
@@ -148,6 +183,10 @@ code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
   .sandbox-warning { background: #3f171d; color: #fecdd3; border-color: #ef4444; }
   input, select, textarea, button { background: #172033; color: #e5e7eb; border-color: #64748b; }
   button:hover { background: #24324a; }
+  .release-table th,
+  .release-table td { border-bottom-color: #475569; }
+  .release-table thead th { background: #172033; color: #cbd5e1; }
+  .release-note { color: #cbd5e1; }
 }
 
 @media (max-width: 700px) {

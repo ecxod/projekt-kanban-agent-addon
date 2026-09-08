@@ -123,7 +123,7 @@ class HostTests(unittest.TestCase):
         response = json.loads(completed.stdout)
         self.assertEqual(response, {
             "name": "de.projekt_kanban.agent",
-            "version": "0.1.7",
+            "version": "0.1.8.0",
             "protocol": 1,
         })
 
@@ -163,7 +163,7 @@ class HostTests(unittest.TestCase):
         self.assertEqual(normalized["agents"][0]["workspace"], "")
         self.assertEqual(
             host_module.public_agent(normalized["agents"][0])["startDirectory"],
-            str(Path.home().resolve(strict=False)),
+            str(host_module.default_local_home(normalized["agents"][0])),
         )
         prompt, _digest = host_module.build_prompt({"task": {
             "id": "18",
@@ -226,6 +226,12 @@ class HostTests(unittest.TestCase):
         finally:
             client.close()
 
+    def test_connection_test_sends_prompt_and_returns_agent_response(self) -> None:
+        host_module.manager_save_config(self.config())
+        result = host_module.NativeHost().test_agent({"agentId": "fake-agent"})
+        self.assertEqual(result["prompt"], host_module.AGENT_TEST_PROMPT)
+        self.assertEqual(result["message"], "Fake agent completed the task.")
+
     def test_disabled_agent_is_preserved_but_unavailable(self) -> None:
         client = NativeClient(self.environment)
         try:
@@ -248,7 +254,7 @@ class HostTests(unittest.TestCase):
         try:
             response = client.request("hello")
             self.assertTrue(response["ok"])
-            self.assertEqual(response["data"]["version"], "0.1.7")
+            self.assertEqual(response["data"]["version"], "0.1.8.0")
         finally:
             client.close()
 

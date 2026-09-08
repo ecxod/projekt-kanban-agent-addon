@@ -12,6 +12,7 @@
   const ALLOWED_ACTIONS = new Set([
     "agent.list",
     "agent.ping",
+    "agent.test",
     "run.start",
     "run.status",
     "run.list",
@@ -53,7 +54,7 @@
         data: { agents: (response.data.agents || []).map(agentForPage) }
       };
     }
-    if (action === "agent.ping" && response.data && response.data.agent) {
+    if ((action === "agent.ping" || action === "agent.test") && response.data && response.data.agent) {
       return {
         ...response,
         data: { ...response.data, agent: agentForPage(response.data.agent) }
@@ -264,6 +265,6 @@
 
   sendToPage({
     type: "ready",
-    capabilities: ["agent.list", "agent.ping", "run.start", "run.status", "run.list", "run.cancel"]
+    capabilities: ["agent.list", "agent.ping", "agent.test", "run.start", "run.status", "run.list", "run.cancel"]
   });
 }());

@@ -1,7 +1,7 @@
 const NATIVE_HOST = "de.projekt_kanban.agent";
 const PAGE_ORIGIN = "https://projekt-kanban.de/";
-const PAGE_ACTIONS = new Set(["agent.list", "agent.ping", "run.start", "run.status", "run.list", "run.cancel"]);
-const ADMIN_ACTIONS = new Set(["hello", "config.get", "config.set", "agent.list", "agent.ping", "run.list", "run.status", "run.cancel"]);
+const PAGE_ACTIONS = new Set(["agent.list", "agent.ping", "agent.test", "run.start", "run.status", "run.list", "run.cancel"]);
+const ADMIN_ACTIONS = new Set(["hello", "config.get", "config.set", "agent.list", "agent.ping", "agent.test", "run.list", "run.status", "run.cancel"]);
 const pending = new Map();
 const eventPorts = new Set();
 const pagePortsByTab = new Map();

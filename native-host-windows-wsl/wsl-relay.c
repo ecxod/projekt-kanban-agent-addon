@@ -356,7 +356,7 @@ static int start_wsl_child(
         _snwprintf(
             command,
             command_size,
-            L"\"%ls\" --distribution \"%ls\" --exec python3 \"%ls\" --base64-native-bridge",
+            L"\"%ls\" --distribution %ls --exec python3 \"%ls\" --base64-native-bridge",
             wsl_path,
             distribution,
             host_path

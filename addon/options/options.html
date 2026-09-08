@@ -16,9 +16,44 @@
       </div>
     </header>
 
-    <section class="notice" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Datenschutz und Zugangsdaten</h2>
-      <p>Das Add-on speichert keine API-Keys oder SSH-Passwörter. Der lokale Native Host verwendet die bereits vorhandene Anmeldung des gewählten Agenten und von SSH. Task-Inhalte werden nur nach einer sichtbaren Bestätigung übertragen.</p>
+    <section aria-labelledby="release-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="release-title">Aktualisierung</h2>
+          <p id="releaseStatus" class="status">GitHub-Releases werden noch nicht geprüft.</p>
+        </div>
+        <button type="button" id="refreshReleases">GitHub prüfen</button>
+      </div>
+      <div class="release-panel">
+        <table class="release-table">
+          <thead>
+            <tr>
+              <th scope="col">Quelle</th>
+              <th scope="col">Version</th>
+              <th scope="col">Veröffentlicht</th>
+              <th scope="col">Status</th>
+              <th scope="col">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Installiert</th>
+              <td id="installedVersion"></td>
+              <td>lokal</td>
+              <td id="installedStatus"></td>
+              <td>--</td>
+            </tr>
+            <tr>
+              <th scope="row">GitHub</th>
+              <td id="githubVersion">--</td>
+              <td id="githubPublished">--</td>
+              <td id="githubStatus">--</td>
+              <td><button type="button" id="updateRelease" disabled>Update installieren</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="release-note">Der Button öffnet das installierbare XPI oder das Release auf GitHub. Firefox verlangt danach weiterhin die Installationsbestätigung.</p>
     </section>
 
     <section aria-labelledby="bridge-title">
@@ -29,14 +64,13 @@
         </div>
         <button type="button" id="reload">Neu laden</button>
       </div>
-      <p>Vor der ersten Verwendung muss die passende lokale Bridge aus dem Release-Paket installiert werden: Windows-WSL oder Linux.</p>
+      <p>„Verbindung testen“ sendet eine kurze Nachricht an den Agenten, verwendet Read-only und zeigt seine Antwort in einem Alert an.</p>
     </section>
 
     <section aria-labelledby="agents-title">
       <div class="section-heading">
         <div>
           <h2 id="agents-title">Agenten</h2>
-          <p>Jeder Agent arbeitet innerhalb eines frei wählbaren Arbeitsbereichs mit beliebig vielen Projekten.</p>
         </div>
         <button type="button" id="addAgent">Agent hinzufügen</button>
       </div>

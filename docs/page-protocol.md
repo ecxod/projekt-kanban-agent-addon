@@ -75,5 +75,5 @@ feedback by `runId` plus `data.sequence`.
 }
 ```
 
-Supported actions are `agent.list`, `agent.ping`, `run.start`, `run.status`,
+Supported actions are `agent.list`, `agent.ping`, `agent.test`, `run.start`, `run.status`,
 `run.list`, and `run.cancel`.

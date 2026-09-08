@@ -103,6 +103,9 @@ The build creates an unsigned XPI. Normal Firefox release installations require
 Mozilla signing; the unsigned package is intended for temporary development
 installation or upload to AMO for unlisted/listed signing.
 
+The add-on settings can also check GitHub releases for a newer version and
+open the installable XPI from the latest release.
+
 ## Build and test
 
 No third-party JavaScript is bundled and no package installation is required.
