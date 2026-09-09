@@ -15,7 +15,8 @@
   const refreshReleasesButton = document.getElementById("refreshReleases");
   const updateReleaseButton = document.getElementById("updateRelease");
   const reloadButton = document.getElementById("reload");
-  const expectedHostVersion = browser.runtime.getManifest().version;
+  const extensionVersion = browser.runtime.getManifest().version;
+  const requiredHostProtocol = 1;
   const githubRepository = "ecxod/projekt-kanban-agent-addon";
   const githubReleasesUrl = `https://api.github.com/repos/${githubRepository}/releases?per_page=20`;
   const { compareVersions, getReleaseVersion, pickReleaseAsset, selectLatestRelease } = globalThis.PKReleaseUtils;
@@ -55,7 +56,7 @@
   }
 
   function renderInstalledState() {
-    installedVersion.textContent = expectedHostVersion;
+    installedVersion.textContent = extensionVersion;
     installedStatus.textContent = "Installiert";
   }
 
@@ -81,7 +82,7 @@
     githubAsset.textContent = asset
       ? `${asset.name}${assetSelection.kind === "signed" ? " (signiert)" : " (nicht signiert)"}`
       : `Kein passendes XPI für ${releaseVersion || "diese Version"}`;
-    const versionComparison = releaseVersion ? compareVersions(releaseVersion, expectedHostVersion) : null;
+    const versionComparison = releaseVersion ? compareVersions(releaseVersion, extensionVersion) : null;
     if (versionComparison === null) {
       githubStatus.textContent = "Versionsnummer des Release-Tags fehlt";
     } else if (versionComparison > 0 && assetSelection.kind === "signed") {
@@ -108,6 +109,20 @@
       throw new Error("Für diese Version ist kein passendes Release-Ziel gefunden worden.");
     }
     await browser.tabs.create({ url: latestReleaseTargetUrl, active: true });
+  }
+
+  async function releaseNetworkDiagnostics() {
+    let githubPermission = "unbekannt";
+    try {
+      if (browser.permissions && browser.permissions.contains) {
+        githubPermission = await browser.permissions.contains({ origins: ["https://api.github.com/*"] })
+          ? "erteilt"
+          : "fehlt";
+      }
+    } catch (_) {
+      githubPermission = "nicht prüfbar";
+    }
+    return `URL: ${githubReleasesUrl}; Online: ${navigator.onLine ? "ja" : "nein"}; GitHub-Berechtigung: ${githubPermission}`;
   }
 
   async function loadReleases() {
@@ -143,7 +158,7 @@
       renderReleaseRow(selectedRelease);
       const version = getReleaseVersion(selectedRelease) || releaseDisplayVersion(selectedRelease);
       const versionComparison = getReleaseVersion(selectedRelease)
-        ? compareVersions(version, expectedHostVersion)
+        ? compareVersions(version, extensionVersion)
         : null;
       const assetSelection = pickReleaseAsset(selectedRelease);
       if (versionComparison === null) {
@@ -155,7 +170,7 @@
       } else if (versionComparison > 0) {
         renderReleaseState(`Version ${version} ist verfügbar, aber ohne passendes XPI.`, "error");
       } else if (versionComparison === 0) {
-        renderReleaseState(`Installierte Version ${expectedHostVersion} ist aktuell.`, "success");
+        renderReleaseState(`Installierte Version ${extensionVersion} ist aktuell.`, "success");
       } else if (versionComparison < 0) {
         renderReleaseState(`GitHub meldet Version ${version}; die lokale Version ist neuer.`, "success");
       } else {
@@ -163,7 +178,9 @@
       }
     } catch (error) {
       renderReleaseRow(null);
-      renderReleaseState(`GitHub-Releases konnten nicht geladen werden: ${error.message}`, "error");
+      const detail = error && error.message ? error.message : String(error);
+      const diagnostics = await releaseNetworkDiagnostics();
+      renderReleaseState(`GitHub-Releases konnten nicht geladen werden: ${detail} (${diagnostics})`, "error");
     } finally {
       releaseLoadInProgress = false;
       refreshReleasesButton.disabled = false;
@@ -264,7 +281,7 @@
     card.querySelector(".test-agent").addEventListener("click", async () => {
       const status = card.querySelector(".agent-status");
       if (!hostCompatible) {
-        setStatus(status, bridgeStatus.textContent || `Bitte zuerst Native Host ${expectedHostVersion} installieren.`, "error");
+        setStatus(status, bridgeStatus.textContent || `Bitte zuerst einen Native Host mit Protokoll ${requiredHostProtocol} installieren.`, "error");
         return;
       }
       try {
@@ -319,7 +336,7 @@
 
   async function saveAgents() {
     if (!hostCompatible) {
-      throw new Error(`Bitte zuerst Native Host ${expectedHostVersion} installieren und danach „Neu laden“ wählen.`);
+      throw new Error(`Bitte zuerst einen Native Host mit Protokoll ${requiredHostProtocol} installieren und danach „Neu laden“ wählen.`);
     }
     const agents = collectAgents();
     const result = await nativeRequest("config.set", { version: 1, agents });
@@ -346,8 +363,8 @@
     setStatus(saveStatus, "");
     try {
       const hello = await nativeRequest("hello");
-      if (hello.version !== expectedHostVersion) {
-        throw new Error(`Native Host ${hello.version || "unbekannt"} ist nicht kompatibel. Benötigt wird Version ${expectedHostVersion}. Bitte die Bridge aus dem aktuellen Release installieren.`);
+      if (hello.protocol !== requiredHostProtocol) {
+        throw new Error(`Native Host ${hello.version || "unbekannt"} verwendet Protokoll ${hello.protocol || "unbekannt"}. Benötigt wird Protokoll ${requiredHostProtocol}. Bitte die Bridge über den Agent Manager aktualisieren.`);
       }
       const config = await nativeRequest("config.get");
       hostCompatible = true;

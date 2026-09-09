@@ -28,7 +28,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-VERSION = "0.1.8.3"
+VERSION = "0.1.8.4"
 HOST_NAME = "de.projekt_kanban.agent"
 MAX_NATIVE_MESSAGE = 1024 * 1024
 MAX_PROMPT_BYTES = 400 * 1024
@@ -42,7 +42,7 @@ AGENT_TEST_PROMPT = (
 )
 ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 SSH_HOST_PATTERN = re.compile(r"^[A-Za-z0-9_.@:-]{1,255}$")
-EXECUTABLE_PATTERN = re.compile(r"^[A-Za-z0-9_./+~-]{1,512}$")
+EXECUTABLE_PATTERN = re.compile(r"^[A-Za-z0-9_./+~@-]{1,512}$")
 ALLOWED_SANDBOXES = {"read-only", "workspace-write", "danger-full-access"}
 ALLOWED_ADAPTERS = {"codex-exec", "jsonl-bridge"}
 ALLOWED_TRANSPORTS = {"local", "ssh"}
@@ -128,6 +128,22 @@ def validate_identifier(value: Any, field: str) -> str:
     return text
 
 
+def normalize_executable_path(value: Any, transport: str, agent_id: str) -> str:
+    executable = str(value or "").strip()
+    if not EXECUTABLE_PATTERN.fullmatch(executable) or executable.startswith("-"):
+        raise ProtocolError("INVALID_CONFIG", f"Invalid executable for {agent_id}.")
+    if transport != "local" or "/" not in executable:
+        return executable
+
+    expanded = os.path.expanduser(executable)
+    npm_target_suffix = "/lib/node_modules/@openai/codex/bin/codex.js"
+    if expanded.endswith(npm_target_suffix):
+        wrapper = expanded[: -len(npm_target_suffix)] + "/bin/codex"
+        if Path(wrapper).is_file():
+            expanded = wrapper
+    return os.path.normpath(os.path.abspath(expanded))
+
+
 def validate_config(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict) or raw.get("version") != 1 or not isinstance(raw.get("agents"), list):
         raise ProtocolError("INVALID_CONFIG", "Configuration must contain version 1 and an agents list.")
@@ -156,15 +172,11 @@ def validate_config(raw: Any) -> dict[str, Any]:
         adapter = str(source.get("adapter") or "codex-exec")
         transport = str(source.get("transport") or "local")
         sandbox = str(source.get("sandbox") or "read-only")
-        executable = str(source.get("executable") or "").strip()
         if adapter not in ALLOWED_ADAPTERS or transport not in ALLOWED_TRANSPORTS:
             raise ProtocolError("INVALID_CONFIG", f"Unsupported adapter or transport for {agent_id}.")
         if sandbox not in ALLOWED_SANDBOXES:
             raise ProtocolError("INVALID_CONFIG", f"Unsupported sandbox for {agent_id}.")
-        if not EXECUTABLE_PATTERN.fullmatch(executable) or executable.startswith("-"):
-            raise ProtocolError("INVALID_CONFIG", f"Invalid executable for {agent_id}.")
-        if transport == "local" and "/" in executable:
-            executable = str(Path(executable).expanduser().resolve(strict=False))
+        executable = normalize_executable_path(source.get("executable"), transport, agent_id)
 
         arguments = source.get("arguments") or []
         if not isinstance(arguments, list) or len(arguments) > 32:

@@ -30,6 +30,9 @@ expected_host_permissions = [
 ]
 if manifest.get("host_permissions") != expected_host_permissions:
     fail("host permissions must be restricted to GitHub and projekt-kanban.de")
+expected_csp = "default-src 'self'; script-src 'self'; connect-src https://api.github.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+if manifest.get("content_security_policy", {}).get("extension_pages") != expected_csp:
+    fail("extension pages CSP must allow GitHub release API connections")
 gecko = manifest.get("browser_specific_settings", {}).get("gecko", {})
 if gecko.get("strict_min_version") != "128.0":
     fail("desktop Firefox compatibility must start at ESR 128")
