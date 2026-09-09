@@ -1,16 +1,28 @@
-# Installation
+# Installation: Projekt Kanban Agent Connector
 
 ## Windows Firefox with an agent in WSL
 
-Extract `projekt-kanban-agent-0.1.8.3-windows-wsl.zip` and double-click:
+Use the separate Manager/Bridge release for Windows with WSL:
 
 ```text
-native-host-windows-wsl\start-agent-manager.cmd
+https://github.com/ecxod/projekt-kanban-agent-manager/releases/latest
 ```
 
-The graphical manager lets you select the WSL distribution, enter the Codex
-and workspace paths, install/update the bridge, test it, activate/deactivate
-the agent, and uninstall the bridge.
+Download and extract:
+
+```text
+projekt-kanban-agent-manager-0.1.8.19-windows-wsl.zip
+```
+
+Then double-click:
+
+```text
+start-agent-manager.cmd
+```
+
+The graphical manager lets you select the WSL distribution, enter the Codex and
+workspace paths, install/update the bridge, test it, activate/deactivate the
+agent, and uninstall the bridge.
 
 For a command-line installation, open PowerShell in the extracted directory and run:
 
@@ -26,19 +38,31 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host-windows-ws
 ```
 
 The installer copies the native host and Windows relay under `%LOCALAPPDATA%`,
-verifies the complete relay through `wsl.exe`, and registers it for the current Windows user under
-`HKCU\Software\Mozilla\NativeMessagingHosts`.
+verifies the complete relay through `wsl.exe`, and registers it for the current
+Windows user under `HKCU\Software\Mozilla\NativeMessagingHosts`.
 
-Restart Firefox after installation. In the add-on settings use:
+In the Manager settings use:
 
-- **Verbindung:** `Lokal / über Windows-WSL-Bridge`
+- **WSL Distribution:** the selected distribution, for example `Devuan` or `Ubuntu`
+- **Agent ID:** `local-codex`
 - **Adapter:** `Codex CLI`
-- **Agentenprogramm:** the WSL path to Codex, for example
-  `/mnt/c/Users/Christian/.codex/bin/wsl/codex`
-- **Sandbox:** `Arbeitsbereich schreiben`, `Nur lesen (Dry-Run)` or explicitly
-  `Uneingeschränkter Zugriff`
-- **Arbeitsbereich:** a directory containing any number of projects, for example
-  `/mnt/c/Users/Christian/workspace`
+- **Agentenprogramm:** the executable returned by `command -v codex` in WSL, for example
+  `/home/christian/.nvm/versions/node/v22.23.2/bin/codex`
+- **Sandbox:** `workspace-write`, `read-only` or explicitly `danger-full-access`
+- **Arbeitsbereich:** an absolute WSL path, for example `/mnt/c/Users/Christian/workspace`
+
+Do not use the old Windows-profile Codex wrapper if it reports an older Codex
+version:
+
+```text
+/mnt/c/Users/Christian/.codex/bin/wsl/codex
+```
+
+Do not use the resolved internal JavaScript file either:
+
+```text
+/home/christian/.nvm/versions/node/v22.23.2/lib/node_modules/@openai/codex/bin/codex.js
+```
 
 With unrestricted access the workspace field is not used. The start directory
 is the agent user's home. In the Windows-WSL bundle a Codex executable below
@@ -60,13 +84,27 @@ host on demand. The host is installed only for the current user.
 
 ## Install the Firefox extension
 
-The release bundle contains the XPI signed by Mozilla for self-distribution:
+Use the add-on release:
+
+```text
+https://github.com/ecxod/projekt-kanban-agent-addon/releases/latest
+```
+
+Download the XPI signed by Mozilla for self-distribution:
+
+```text
+projekt-kanban-agent-0.1.8.4-signed.xpi
+```
 
 1. Open **Add-ons and themes** in Firefox.
 2. Open the cog menu.
 3. Select **Install Add-on From File**.
-4. Select `projekt-kanban-agent-0.1.8.3-signed.xpi` from the extracted bundle.
+4. Select `projekt-kanban-agent-0.1.8.4-signed.xpi`.
 5. Confirm with **Add**.
+
+A full Firefox restart is normally not required. If Firefox still uses an old
+Native Messaging connection, disable/enable the add-on or close and reopen the
+add-on page.
 
 ## Configure an agent
 
