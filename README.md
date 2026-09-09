@@ -1,5 +1,7 @@
 # Projekt Kanban Agent Connector
 
+[Installation](INSTALL.md) · [Latest Add-on Release](https://github.com/ecxod/projekt-kanban-agent-addon/releases/latest) · [Manager/Bridge](https://github.com/ecxod/projekt-kanban-agent-manager)
+
 Firefox connector for sending user-selected tasks from
 [`projekt-kanban.de`](https://projekt-kanban.de/) directly to coding agents
 owned and configured by the user. The Projekt Kanban web server does not proxy
